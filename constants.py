@@ -62,6 +62,7 @@ class GroqPolicy:
     backoff_base_s: float
     max_output_repair_attempts: int
     mass_429_threshold: int
+    honor_retry_after_header: bool
 
 
 def load_policy() -> dict[str, Any]:
@@ -143,4 +144,5 @@ def load_groq_policy() -> GroqPolicy:
         backoff_base_s=float(raw["backoff_base_s"]),
         max_output_repair_attempts=int(raw["max_output_repair_attempts"]),
         mass_429_threshold=int(raw.get("mass_429_threshold", 3)),
+        honor_retry_after_header=bool(raw.get("honor_retry_after_header", True)),
     )
