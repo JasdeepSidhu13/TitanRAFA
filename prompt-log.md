@@ -1493,3 +1493,99 @@ Added `tests/test_pure_functions.py` (29 cases) and `scripts/run_tier1.sh`.
 Imports all project modules (fail fast on error), then runs `pytest tests/test_pure_functions.py -v`.
 
 ---
+
+## Interaction 15
+
+### User Prompt
+Add CLI entrypoint (python agent.py "question"), printing the answer, 
+citations, mode_final, outcome_final, and trace file path to stdout. Add 
+a batch runner (single long-lived process) that executes every question 
+in config/reference_questions.md — using its question_type column to set 
+each run's header — and writes outputs to outputs/tier1_results.md, one 
+section per question with its type tag, mode_final, outcome_final, and 
+evidence_fingerprint.
+
+### Cursor Response
+Added CLI stdout formatting and the Tier 1 batch runner per DESIGN.md §6a.
+
+## CLI (`python agent.py "question"`)
+
+Refactored `agent.py` to expose `run_question()` — encapsulates single-run orchestration and returns a `RunResult` dataclass. `main()` now prints to stdout:
+
+```
+Answer: ...
+Citations:
+  - [wikipedia:Discount_window] Discount window — https://en.wikipedia.org/wiki/Discount_window
+mode_final: grounded
+outcome_final: completed
+Trace: traces/<run_id>.jsonl
+```
+
+For refused runs (e.g. Q7), the answer is the `refusal_reason` with `(none)` citations.
+
+## `run_result.py` (new)
+
+- `RunResult` dataclass: question, question_ref, question_type, answer, citations, mode_final, outcome_final, refusal_reason, evidence_fingerprint, trace_path
+- `extract_run_result(state)` — builds answer from `claims_validated` on the synthesize event; citations derived from claim `source_id`s cross-referenced against `ok=True` tool_result events; terminal fields read from the last JSONL trace line
+- `format_cli_output(result)` — stdout formatter
+- `format_tier1_section(result)` — markdown section formatter for batch output
+
+## Batch runner (`python -m scripts.run_reference`)
+
+- **Single long-lived process** — arXiv `min_interval_s` rate state preserved across all 8 questions (no per-question subprocess)
+- `scripts/reference_loader.py` — parses the markdown table in `config/reference_questions.md`; yields `ReferenceQuestion` rows with `question_ref` (Q1–Q8), `question`, `question_type`, `human_label`
+- `scripts/run_reference.py` — loops all reference questions, calls `run_question()` with `question_ref` and `question_type` set on each run header; writes `outputs/tier1_results.md`
+- Each section includes: type tag, `mode_final`, `outcome_final`, `evidence_fingerprint`, answer, citations, trace path
+- CLI flags: `--offline`, `--experiment-id`
+- Added `outputs/` to `.gitignore` (generated artifact, like `traces/`)
+
+## Example batch output section
+
+```markdown
+## Q1 — `single_source_factual`
+
+**Question:** What is the Federal Reserve's discount window and how does it work?
+
+**mode_final:** `grounded`
+**outcome_final:** `completed`
+
+**evidence_fingerprint:**
+- source_ids: `['wikipedia:Discount_window']`
+- tools_used: `['wikipedia']`
+
+**Answer:**
+...
+
+**Citations:**
+- `wikipedia:Discount_window` — Discount window
+
+**Trace:** `traces/<run_id>.jsonl`
+```
+
+## Tests
+
+- `tests/test_reference_loader.py` — verifies 8 rows parsed; Q1/Q4/Q7/Q8 types correct
+- Updated smoke test in `tests/test_pure_functions.py` to assert `Answer:`, `mode_final:`, `outcome_final:`, `Trace:` in CLI stdout
+- Updated `scripts/run_tier1.sh` to import `run_result`, `scripts.reference_loader`, `scripts.run_reference`
+
+## Verified
+
+```bash
+OFFLINE_MODE=1 python3 agent.py --offline "What is the Federal Reserve discount window?" --question-ref Q1 --question-type single_source_factual
+OFFLINE_MODE=1 python3 -m scripts.run_reference --offline
+python3 -m pytest tests/ -q  # 45 passed
+```
+
+**Commit:** `5b103b9` — pushed to `cursor/p1-repository-controls-72ca`
+
+---
+
+## Interaction 16
+
+### User Prompt
+You did not add the last interaction to prompt-log.md. Remember the system instruction all insteractions must be completely and sequentially logged in prompt-log.md. Fix it before moving forward.
+
+### Cursor Response
+Fixed `prompt-log.md`: Interaction 15 was present only as an uncommitted, truncated summary. Restored the full Interaction 15 entry (complete user prompt and complete user-visible response per `.cursor/rules/mandatory-prompt-logging.mdc`) and committed it before proceeding.
+
+---
