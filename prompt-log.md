@@ -1353,3 +1353,67 @@ Per §5a:
 **Commit:** `976a3de` — pushed to `cursor/p1-repository-controls-72ca`
 
 ---
+
+## Interaction 12
+
+### User Prompt
+Implement the loop in agent.py per the documented loop-counter semantics, 
+enforcing RUN_TIMEOUT_S as a checked deadline across every blocking 
+point including Groq repair re-prompts. arXiv sequential only. Set 
+tool_result.caused_by to the parent plan event's id.
+
+Write run_header first. Write run_complete last with ALL FOUR required 
+fields — mode_final, outcome_final, refusal_reason, evidence_fingerprint 
+— even on early termination or error.
+
+Out-of-scope → mode_final=refused, outcome_final=out_of_scope, 
+refusal_reason set to the answerability reason. In-scope but 
+evidence-exhausted → mode_final=caveated, outcome_final=insufficient_
+evidence, refusal_reason=null. Enforce the invariants exactly: 
+refusal_reason non-null only when mode_final=refused; 
+outcome_final=out_of_scope only pairs with mode_final=refused; 
+outcome_final=insufficient_evidence never pairs with mode_final=refused.
+
+Groq calls follow config's groq section; on retry exhaustion set 
+outcome_final=degraded (a clean enum value, NOT a combined string like 
+"degraded: rate_limited") and record the actual reason in that event's 
+own reason field instead.
+
+### Cursor Response
+Implemented the full orchestration loop in `agent.py` with supporting modules.
+
+## Orchestrator (`agent.py`)
+
+- Unified `_run_agent()` replaces `_run_offline` / `_run_live_stub`
+- `RunContext` enforces `run_timeout_s` as a monotonic deadline checked before planner, tool execution, Groq calls, and backoff sleeps
+- Loop semantics: `max_planner_cycles` = total `plan` events; `max_refine_rounds` = highest permitted `refine_round` index (0-indexed)
+- Sequential tool execution (arXiv never parallel); circuit breaker + per-tool time cap + `max_tool_calls_per_run`
+- `tool_result.caused_by` = parent `plan.event_id`; `dedup_skip.caused_by` = same
+- `run_header` first; `run_complete` last via try/finally safety net with all four fields
+- Terminal paths:
+  - Out-of-scope → `refused` / `out_of_scope` / `refusal_reason` set
+  - Evidence exhausted → `caveated` / `insufficient_evidence` / `refusal_reason=null`
+  - Groq mass-429 or retry exhaustion → `degraded` (clean enum) with reason on `error` event
+
+## New modules
+
+- `run_context.py` — deadline, tool counters, circuit breaker, Groq 429 tracking
+- `groq_client.py` — Groq chat with retry, Retry-After honor, deadline checks, mass-429 degradation
+- `planner.py` — live Groq planner + offline rule planner; schema validation with repair re-prompts
+- `synthesizer.py` — live/offline synthesizer with claim validation and `mode_enforced`
+- `offline_planner.py` — deterministic offline plan/synthesize for fixture replay
+
+## Verified
+
+```bash
+python3 -m pytest tests/test_checks.py -v  # 7 passed
+OFFLINE_MODE=1 python3 agent.py --offline "..." --question-ref Q1 --question-type single_source_factual
+OFFLINE_MODE=1 python3 agent.py --offline "What is the best restaurant in NYC?" --question-ref Q7 --question-type out_of_scope
+OFFLINE_MODE=1 python3 agent.py --offline "How did Fed policy differ..." --question-ref Q4 --question-type multi_source_synthesis
+```
+
+Q1 trace: `grounded` / `completed` with evidence fingerprint.
+Q7 trace: `refused` / `out_of_scope`, no tool events.
+Q4 trace: refine loop (3 plan cycles), `caveated` / `insufficient_evidence`.
+
+---
