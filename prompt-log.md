@@ -1831,3 +1831,21 @@ Before i move forward, do two things: 1) Give me a count of GROQ_API calls and t
 Committed and pushed to `cursor/tier1-completion-72ca` (PR #3).
 
 ---
+
+## Interaction 21
+
+### User Prompt
+The requirements.txt should python dot env installation as well. What does X mean here for wikipedia?
+
+### Cursor Response
+Added **`python-dotenv==1.0.1`** to `requirements.txt` and updated `env_loader.py` to use `load_dotenv(override=True)` from that package (so `.env` still overrides stale shell exports).
+
+**What “×” means for Wikipedia:** In notations like `wikipedia×1`, the **`×` is a count** — “one Wikipedia tool call was attempted.” It is not a failure marker.
+
+In the per-question table from Interaction 20, **`❌` / `(fail)`** means the tool returned `tool_result.ok=false`. For Wikipedia in the live Tier 1 batch, almost every call failed with **`wikipedia search status 403`** (Wikipedia blocked or rate-limited the request from this environment). Only **Q6** had one successful Wikipedia hit (`wikipedia:Inverted_yield_curve`); the other 7 Wikipedia attempts failed.
+
+**`✅` / `(ok)`** means `tool_result.ok=true` — the tool returned usable evidence.
+
+Added a short legend under the README Tier 1 table clarifying `(ok)` vs `(fail)`.
+
+---

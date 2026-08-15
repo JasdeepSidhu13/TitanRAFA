@@ -17,6 +17,8 @@ Live batch run **`tier1-20260815-verify`** (see `outputs/tier1_results.md`):
 | Q7 | out_of_scope | refused | out_of_scope | 0 | none (answerability only) |
 | Q8 | speculative | caveated | completed | 2 | wikipedia×1 (fail), arxiv×1 (ok) — inference:true claim |
 
+Tool column legend: `wikipedia×1` = one Wikipedia call attempted; `(ok)` = `tool_result.ok=true`; `(fail)` = `tool_result.ok=false` (live batch: most Wikipedia calls returned HTTP 403).
+
 **Batch totals:** 24 Groq `complete()` HTTP calls · 16 tool executions (wikipedia 8, arxiv 8; 7 ok) · 9 dedup skips
 
 **Tests:** `bash scripts/run_tier1.sh` (29) + `pytest tests/` (45) — all passing
