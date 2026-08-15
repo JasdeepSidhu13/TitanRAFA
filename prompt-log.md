@@ -1849,3 +1849,123 @@ In the per-question table from Interaction 20, **`❌` / `(fail)`** means the to
 Added a short legend under the README Tier 1 table clarifying `(ok)` vs `(fail)`.
 
 ---
+
+## Interaction 22
+
+### User Prompt
+You did not log the previous interaction. Make sure you're logging all interactions as per the rule. So please fix it . Now, before fixing anything: show me the FULL response body and headers of 
+one actual 403 failure (not just the status code) — Wikimedia's API 
+typically explains the block in the response body (commonly a 
+User-Agent policy violation: https://meta.wikimedia.org/wiki/User-Agent_
+policy, requiring a descriptive User-Agent with app name/contact info). 
+Confirm whether WikipediaTool's requests calls currently set a custom 
+User-Agent header at all, or are using requests' default.
+
+If it's the User-Agent policy: add a proper header (e.g. 
+"ResearchAgent/1.0 (educational-assessment; contact: <your email or a 
+placeholder>)") to every Wikipedia REST call and re-run. If the 403 body 
+says something else (IP-range block, actual rate limiting), tell me 
+exactly what it says before proposing a fix — don't add retries/backoff 
+to work around a 403 without knowing why it's happening, same as we 
+didn't touch retry logic to work around the earlier Groq 401.
+
+Once fixed, re-run the live batch and report the new Wikipedia success 
+rate across all 8 questions, plus specifically re-check Q4 and Q6's 
+evidence_fingerprint.tools_used — with Wikipedia actually working, 
+confirm whether the diversity gate result changes (arXiv-only evidence 
+was masking whether Wikipedia+arXiv diversity ever got properly tested).
+
+### Cursor Response
+Logged Interaction 22. (Interaction 21 was already in `prompt-log.md`; this entry covers the Wikipedia 403 investigation and UA fix.)
+
+## Full 403 capture (before any fix)
+
+Reproduced the live failure path: **search API** (`/w/api.php`) with **no User-Agent** (matching `_search_fallback` bug).
+
+**Request:** `GET https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=Federal+Reserve+discount+window&format=json&srlimit=5`
+
+**Status:** `403 Forbidden`
+
+**Response headers:**
+```
+content-length: 126
+content-type: text/plain
+x-request-id: 1652bc1c-efde-4338-8563-4a8049c7d737
+server: HAProxy
+x-cache: cp4044 int
+x-cache-status: int-tls
+x-analytics: 
+```
+
+**Response body (full):**
+```
+Please set a user-agent and respect our robot policy https://w.wiki/4wJS. See also https://phabricator.wikimedia.org/T400119.
+```
+
+This is Wikimedia **User-Agent policy enforcement**, not IP-range block or rate limiting.
+
+## WikipediaTool User-Agent audit (pre-fix)
+
+| Call path | User-Agent set? |
+|-----------|-----------------|
+| REST summary (`/api/rest_v1/page/summary/...`) | **Yes** — `TitanRAFA-research-agent/1.0` |
+| Search fallback (`/w/api.php`) | **No** — httpx default (no header) |
+
+Live traces showed `wikipedia search status 403` because most queries 404 on direct REST title lookup, then fall through to search **without** a User-Agent. Q6's lone success used direct REST title match (`Yield curve inversion` → `Inverted_yield_curve`) and never hit search.
+
+Without custom UA, REST summary also returns 403:
+```
+Please set a user-agent and respect our robot policy https://w.wiki/4wJS. See also https://phabricator.wikimedia.org/T400119.
+```
+
+## Fix applied
+
+- Added `WIKIPEDIA_USER_AGENT = "ResearchAgent/1.0 (educational-assessment; https://github.com/JasdeepSidhu13/TitanRAFA; contact: jasdeepsidhu13@gmail.com)"`
+- `_http_client()` sets this on **every** Wikipedia HTTP call (REST + search + summary-after-search)
+- No retry/backoff changes
+
+## Live re-run (`tier1-20260815-ua-fix`)
+
+**Wikipedia success rate: 8/9 (88.9%)**
+
+| Q | Wikipedia | Outcome | tools_used |
+|---|-----------|---------|------------|
+| Q1 | 1/1 ok | grounded / completed | `['wikipedia']` |
+| Q2 | 1/1 ok | grounded / completed | `['arxiv', 'wikipedia']` |
+| Q3 | 1/1 ok | grounded / completed | `['arxiv', 'wikipedia']` |
+| Q4 | 1/1 ok | **caveated / completed** | `['arxiv', 'wikipedia']` |
+| Q5 | 1/1 ok | caveated / insufficient_evidence | `['arxiv', 'wikipedia']` |
+| Q6 | 3/3 ok | caveated / insufficient_evidence | `['wikipedia']` |
+| Q7 | 0 calls | refused / out_of_scope | `[]` |
+| Q8 | 0/1 ok | caveated / completed | `['arxiv']` |
+
+Q8 Wikipedia fail: `no title overlap in search results` (relevance), not 403.
+
+### Q4 diversity gate — **changed**
+
+| | Pre-UA-fix | Post-UA-fix |
+|---|------------|-------------|
+| Wikipedia | 403 (search) | ok (`wikipedia:Federal_Reserve`) |
+| Sufficiency | `diversity_gate deciding factor` — 1 tool (arxiv) | `diversity_gate satisfied` — 2 tools (arxiv, wikipedia) |
+| outcome_final | `insufficient_evidence` | **`completed`** |
+| tools_used | `['arxiv']` | **`['arxiv', 'wikipedia']`** |
+
+ArXiv-only evidence had been masking whether Wikipedia+arXiv diversity could pass; with Wikipedia working, Q4 now properly tests and **passes** the diversity gate.
+
+### Q6 diversity gate — **unchanged (correctly)**
+
+| | Pre-UA-fix | Post-UA-fix |
+|---|------------|-------------|
+| Wikipedia | 1/2 ok | **3/3 ok** |
+| arXiv | 0/2 ok (empty results) | 0/2 ok (empty results) |
+| Sufficiency | diversity_gate fail — 1 tool (wikipedia) | diversity_gate fail — 1 tool (wikipedia) |
+| outcome_final | `insufficient_evidence` | `insufficient_evidence` |
+| tools_used | `['wikipedia']` | `['wikipedia']` |
+
+Wikipedia fix does not change Q6 outcome: diversity gate still requires ≥2 distinct tools; arXiv returned no entries, so only Wikipedia counts.
+
+**Groq calls (new batch):** 21 · Artifacts: `outputs/tier1_results.md`, traces under experiment `tier1-20260815-ua-fix`
+
+Committed: `tools/wikipedia.py` UA fix + Interaction 22 log.
+
+---
