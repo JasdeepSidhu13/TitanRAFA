@@ -10,27 +10,34 @@ arxiv:
   timeout_s: 10
   max_retries: 3
   backoff_base_s: 1.0
+  honor_retry_after_header: true
   notes: >
     arXiv Terms of Use: no more than 1 request every 3 seconds, single
     connection at a time (https://info.arxiv.org/help/api/tou.html).
     429/503 responses have been reported even from fully compliant
     clients — always retry on 429/503, do not treat as a client bug.
     Limits may change; re-check ToU if errors persist beyond retry budget.
+    Cross-process min_interval: persisted via .ratelimit_state.json
+    (see tools/rate_limit.py). The batch runner (DESIGN.md §6a) is the
+    preferred path for reference-question batches — single process, no file.
 
 wikipedia:
   min_interval_s: 1.0
   timeout_s: 8
   max_retries: 2
   backoff_base_s: 0.5
+  honor_retry_after_header: true
   notes: >
     No hard published per-client rate limit, but shared infrastructure —
     self-throttle as good practice and to avoid IP-based soft blocks.
+    Uses Wikipedia REST API directly (no wikipedia PyPI package).
 
 fred:
   min_interval_s: 0.5
   timeout_s: 10
   max_retries: 2
   backoff_base_s: 0.5
+  honor_retry_after_header: true
   notes: >
     Tier 3 addition (Option C). CONFIRM the current free-tier request
     limit at build time before relying on this value — do not assume it
@@ -42,6 +49,7 @@ groq:
   backoff_base_s: 1.0
   max_output_repair_attempts: 1
   mass_429_threshold: 3
+  honor_retry_after_header: true
   notes: >
     Applies to both planner and synthesizer calls. On 429/transient 5xx,
     retry per above, honoring Retry-After when present. On schema-invalid

@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "reason": "offline fixture: arxiv credit risk ML",
+  "source_id": "arxiv:2301.00001",
+  "content_full": "Title: Machine Learning for Credit Risk Assessment\nAbstract: We survey recent machine learning methods applied to credit risk modeling, including gradient boosting and neural approaches for default prediction.",
+  "citation": {
+    "title": "Machine Learning for Credit Risk Assessment",
+    "url_or_id": "arxiv:2301.00001"
+  }
+}

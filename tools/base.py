@@ -16,6 +16,16 @@ from typing import Any, Callable, Literal, Optional
 
 FailureClass = Literal["timeout", "http_429", "parse_error", "empty_result"]
 
+SYNTHESIS_CHAR_LIMIT = 1500
+
+
+@dataclass
+class ToolCitation:
+    """Citation metadata returned with every successful tool invocation."""
+
+    title: str
+    url_or_id: str
+
 
 @dataclass
 class ToolResult:
@@ -48,6 +58,7 @@ class ToolResult:
     content_for_synthesis: str = ""
     truncated: bool = False
     failure_class: Optional[FailureClass] = None
+    citation: Optional[ToolCitation] = None
 
     def __post_init__(self) -> None:
         if not self.ok and self.failure_class is None:
@@ -82,6 +93,8 @@ class RetryPolicy:
     timeout_s: float
     max_retries: int
     backoff_base_s: float
+    honor_retry_after_header: bool = False
+    rate_store: Optional[Any] = None  # RateLimitStore, optional cross-process gate
     _last_call_monotonic: float = field(default=0.0, repr=False)
 
     def wait_for_interval(self, deadline: Optional[float] = None) -> bool:
@@ -103,6 +116,18 @@ class RetryPolicy:
         When not to use:
             N/A.
         """
+        if self.rate_store is not None:
+            import time as _time
+
+            since = self.rate_store.seconds_since_last_call()
+            remaining = self.min_interval_s - since
+            if remaining <= 0:
+                return True
+            if deadline is not None and _time.monotonic() + remaining > deadline:
+                return False
+            _time.sleep(remaining)
+            return True
+
         elapsed = time.monotonic() - self._last_call_monotonic
         remaining = self.min_interval_s - elapsed
         if remaining <= 0:
@@ -134,7 +159,7 @@ class RetryPolicy:
         When not to use:
             N/A.
         """
-        if retry_after_header:
+        if retry_after_header and self.honor_retry_after_header:
             try:
                 if retry_after_header.isdigit():
                     return float(retry_after_header)
@@ -185,6 +210,8 @@ class RetryPolicy:
         last_result: Optional[ToolResult] = None
         for attempt in range(self.max_retries + 1):
             self._last_call_monotonic = time.monotonic()
+            if self.rate_store is not None:
+                self.rate_store.record_call_now()
             try:
                 result, retry_after = operation()
             except Exception as exc:  # noqa: BLE001 — tool layer must not raise

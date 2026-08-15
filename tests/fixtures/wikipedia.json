@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "reason": "offline fixture: wikipedia discount window",
+  "source_id": "wikipedia:Discount_window",
+  "content_full": "The discount window is a lending facility that allows depository institutions to borrow reserves from the Federal Reserve. Primary credit is extended at the discount rate to generally well-capitalized banks.",
+  "citation": {
+    "title": "Discount window",
+    "url_or_id": "https://en.wikipedia.org/wiki/Discount_window"
+  }
+}

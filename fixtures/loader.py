@@ -2,8 +2,8 @@
 
 Responsibility:
     When OFFLINE_MODE=1 or --offline is set, replay canned tool and LLM
-    responses so a full trace (run_header through run_complete) is produced
-    without network access. Part of Tier 1 happy path per DESIGN.md §10.
+    responses from tests/fixtures/ so a full trace is produced without
+    network access. Part of Tier 1 happy path per DESIGN.md §10.
 """
 
 from __future__ import annotations
@@ -11,97 +11,78 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-FIXTURES_DIR = Path(__file__).resolve().parent / "data"
+# Recorded tool fixtures live under tests/fixtures/ (Tier 1 baseline).
+FIXTURES_DIR = Path(__file__).resolve().parent.parent / "tests" / "fixtures"
+
+# Module-level offline flag set by agent CLI via set_offline_mode().
+_offline_cli_flag: bool = False
+
+
+def set_offline_mode(enabled: bool) -> None:
+    """Set CLI --offline flag for tools to read without circular imports."""
+    global _offline_cli_flag
+    _offline_cli_flag = enabled
 
 
 def is_offline_mode(cli_offline: bool = False) -> bool:
     """Return True when offline replay mode is active.
 
     Description:
-        Checks ``--offline`` flag or ``OFFLINE_MODE`` env var (1/true/yes).
+        Checks CLI flag (set via set_offline_mode), --offline arg, or
+        OFFLINE_MODE env var (1/true/yes).
 
     Input:
-        cli_offline: Value of argparse --offline flag.
+        cli_offline: Value of argparse --offline flag when calling directly.
 
     Output:
         True if offline fixtures should be used.
 
     When to use:
-        At agent startup before Groq key validation.
+        Tool invoke paths and agent startup.
 
     When not to use:
         N/A.
     """
-    if cli_offline:
+    if cli_offline or _offline_cli_flag:
         return True
     return os.environ.get("OFFLINE_MODE", "").lower() in {"1", "true", "yes"}
 
 
 def load_tool_fixture(tool_name: str, query: str) -> dict[str, Any]:
-    """Load a canned tool response for offline mode.
+    """Load a recorded tool response from tests/fixtures/{tool_name}.json.
 
     Description:
-        Stub loader: returns embedded defaults or reads
-        ``fixtures/data/<tool_name>.json`` when present.
+        Primary offline data source for WikipediaTool and ArxivTool.
 
     Input:
         tool_name: e.g. ``wikipedia``, ``arxiv``.
-        query: Query string (may select fixture variant in future).
+        query: Query string (reserved for per-query fixture selection).
 
     Output:
-        Dict with keys matching successful ToolResult fields.
+        Dict with ToolResult-compatible fields including citation.
 
     When to use:
-        Offline executor path only.
+        Inside tool ``invoke`` when offline mode is active.
 
     When not to use:
-        Live runs with real API keys.
+        Live API runs.
     """
     path = FIXTURES_DIR / f"{tool_name}.json"
     if path.exists():
         with path.open(encoding="utf-8") as fh:
-            data = json.load(fh)
-        return data
+            return json.load(fh)
 
-    # Minimal inline defaults so offline always produces inspectable output.
-    defaults: dict[str, dict[str, Any]] = {
-        "wikipedia": {
-            "ok": True,
-            "reason": "offline fixture",
-            "source_id": "wikipedia:Discount_window",
-            "content_full": (
-                "The discount window is a lending facility that allows "
-                "eligible institutions to borrow reserves from the Federal Reserve."
-            ),
-            "content_for_synthesis": (
-                "The discount window is a lending facility that allows "
-                "eligible institutions to borrow reserves from the Federal Reserve."
-            ),
-            "truncated": False,
-        },
-        "arxiv": {
-            "ok": True,
-            "reason": "offline fixture",
-            "source_id": "arxiv:2301.00001",
-            "content_full": "Offline arXiv fixture abstract for credit risk research.",
-            "content_for_synthesis": "Offline arXiv fixture abstract for credit risk research.",
-            "truncated": False,
-        },
+    return {
+        "ok": False,
+        "reason": f"no offline fixture at {path}",
+        "failure_class": "empty_result",
+        "source_id": None,
+        "content_full": "",
+        "content_for_synthesis": "",
+        "truncated": False,
     }
-    return defaults.get(
-        tool_name,
-        {
-            "ok": False,
-            "reason": f"no offline fixture for tool={tool_name}",
-            "failure_class": "empty_result",
-            "source_id": None,
-            "content_full": "",
-            "content_for_synthesis": "",
-            "truncated": False,
-        },
-    )
 
 
 def load_planner_fixture() -> dict[str, Any]:

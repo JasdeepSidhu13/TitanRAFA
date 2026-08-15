@@ -33,8 +33,9 @@ from fixtures.loader import (
     is_offline_mode,
     load_planner_fixture,
     load_synthesizer_fixture,
-    load_tool_fixture,
+    set_offline_mode,
 )
+from tools import ArxivTool, WikipediaTool
 from tools.base import Tool
 
 
@@ -105,20 +106,26 @@ def _run_offline(state: AgentState) -> None:
         return
 
     for call in plan.tool_calls_after_validation:
-        fixture = load_tool_fixture(call["tool"], call["query"])
+        tool_name = call["tool"]
+        if tool_name == "wikipedia":
+            result = WikipediaTool().invoke(call["query"])
+        elif tool_name == "arxiv":
+            result = ArxivTool().invoke(call["query"])
+        else:
+            continue
         tool_ev = ToolResultEvent(
             refine_round=0,
             caused_by=plan.event_id,
-            tool_name=call["tool"],
-            query=call["query"],
-            normalized_query=Tool.normalize_query(call["query"]),
-            ok=bool(fixture.get("ok")),
-            reason=str(fixture.get("reason", "")),
-            failure_class=fixture.get("failure_class"),
-            source_id=fixture.get("source_id"),
-            content_full=str(fixture.get("content_full", "")),
-            content_for_synthesis=str(fixture.get("content_for_synthesis", "")),
-            truncated=bool(fixture.get("truncated", False)),
+            tool_name=result.tool_name,
+            query=result.query,
+            normalized_query=result.normalized_query,
+            ok=result.ok,
+            reason=result.reason,
+            failure_class=result.failure_class,
+            source_id=result.source_id,
+            content_full=result.content_full,
+            content_for_synthesis=result.content_for_synthesis,
+            truncated=result.truncated,
         )
         state.append_event(tool_ev)
 
@@ -235,6 +242,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     offline = is_offline_mode(args.offline)
+    set_offline_mode(offline)
     _require_groq_key(offline)
 
     refine_disabled = os.environ.get("SINGLE_PASS", "") == "1"
