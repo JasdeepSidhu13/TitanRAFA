@@ -201,11 +201,22 @@ before it needed to. Define before coding:
   loop bounds are exhausted (§5b), at which point it proceeds with
   `mode_final=caveated` and `outcome_final=insufficient_evidence`, not
   silently treated as sufficient.
+- **data_retrieval:** sufficiency requires an `ok=True` `tool_result`
+  from a tool specifically designated as the data source for this
+  `question_type` (currently: `fred`). Generic relevance matches from
+  Wikipedia or arXiv are insufficient on their own — they may supply
+  background/context claims (logged as `inference: true` in synthesis)
+  but cannot satisfy a current-data-point question by substitution. If
+  no data-source tool is registered (e.g. pre-Tier-3, FRED not yet
+  wired), sufficiency cannot pass; bounds exhaust per §5b and the run
+  proceeds to `mode_final=caveated`, `outcome_final=insufficient_evidence`,
+  per §7 — this is the Q5 pre-FRED path, not a bug.
 - Every sufficiency check is logged as a `sufficiency` event:
   `{passed, reason, matched_event_ids, rejected_event_ids, rejected_reasons,
   rule_version}` — `reason` must explicitly state whether the diversity
-  gate was the deciding factor, so a reviewer can see *why* refine did or
-  didn't fire, not just that it did or didn't.
+  gate or `data_retrieval` source requirement was the deciding factor, so
+  a reviewer can see *why* refine did or didn't fire, not just that it
+  did or didn't.
 
 ## 5b. Loop bounds — checked deadline, not a declared constant
 
