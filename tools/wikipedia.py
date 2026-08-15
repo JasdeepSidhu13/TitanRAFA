@@ -22,6 +22,11 @@ from tools.policy import load_wikipedia_retry_policy
 
 WIKI_REST_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
 WIKI_API_SEARCH = "https://en.wikipedia.org/w/api.php"
+WIKIPEDIA_USER_AGENT = (
+    "ResearchAgent/1.0 (educational-assessment; "
+    "https://github.com/JasdeepSidhu13/TitanRAFA; "
+    "contact: jasdeepsidhu13@gmail.com)"
+)
 
 
 class WikipediaTool(Tool):
@@ -50,6 +55,13 @@ class WikipediaTool(Tool):
 
     def __init__(self, policy=None) -> None:
         super().__init__(policy or load_wikipedia_retry_policy())
+
+    @staticmethod
+    def _http_headers() -> dict[str, str]:
+        return {"User-Agent": WIKIPEDIA_USER_AGENT}
+
+    def _http_client(self) -> httpx.Client:
+        return httpx.Client(timeout=self.policy.timeout_s, headers=self._http_headers())
 
     def invoke(self, query: str, deadline: Optional[float] = None) -> ToolResult:
         """Fetch Wikipedia content for ``query`` without raising."""
@@ -94,8 +106,8 @@ class WikipediaTool(Tool):
         url = WIKI_REST_SUMMARY.format(title=encoded)
 
         try:
-            with httpx.Client(timeout=self.policy.timeout_s) as client:
-                resp = client.get(url, headers={"User-Agent": "TitanRAFA-research-agent/1.0"})
+            with self._http_client() as client:
+                resp = client.get(url)
         except httpx.TimeoutException:
             return (
                 make_failure(self.name, query, "wikipedia request timed out", "timeout"),
@@ -115,7 +127,7 @@ class WikipediaTool(Tool):
                 retry_after,
             )
         if resp.status_code == 404:
-            return self._search_fallback(query, client=None, path_note="direct_summary_404")
+            return self._search_fallback(query, path_note="direct_summary_404")
         if resp.status_code >= 500:
             return (
                 make_failure(
@@ -157,7 +169,6 @@ class WikipediaTool(Tool):
         self,
         query: str,
         *,
-        client: Optional[httpx.Client] = None,
         path_note: str,
     ) -> tuple[ToolResult, Optional[str]]:
         """Search Wikipedia and pick best title-overlap match."""
@@ -168,13 +179,9 @@ class WikipediaTool(Tool):
             "format": "json",
             "srlimit": 5,
         }
-        own_client = client is None
-        if own_client:
-            client = httpx.Client(timeout=self.policy.timeout_s)
-
-        assert client is not None
         try:
-            resp = client.get(WIKI_API_SEARCH, params=params)
+            with self._http_client() as client:
+                resp = client.get(WIKI_API_SEARCH, params=params)
         except httpx.TimeoutException:
             return (
                 make_failure(self.name, query, "wikipedia search timed out", "timeout"),
@@ -185,9 +192,6 @@ class WikipediaTool(Tool):
                 make_failure(self.name, query, f"wikipedia search error: {exc}", "parse_error"),
                 None,
             )
-        finally:
-            if own_client:
-                client.close()
 
         retry_after = resp.headers.get("Retry-After") if resp.status_code == 429 else None
         if resp.status_code == 429:
@@ -242,11 +246,8 @@ class WikipediaTool(Tool):
         encoded = urllib.parse.quote(title, safe="/")
         summary_url = WIKI_REST_SUMMARY.format(title=encoded)
         try:
-            with httpx.Client(timeout=self.policy.timeout_s) as sum_client:
-                sum_resp = sum_client.get(
-                    summary_url,
-                    headers={"User-Agent": "TitanRAFA-research-agent/1.0"},
-                )
+            with self._http_client() as sum_client:
+                sum_resp = sum_client.get(summary_url)
         except httpx.TimeoutException:
             return (
                 make_failure(self.name, query, "wikipedia summary timed out", "timeout"),

@@ -1,7 +1,7 @@
 # Tier 1 Reference Question Results
 
-Generated: 2026-08-15T15:40:23.607169+00:00
-Experiment ID: `tier1-20260815-verify`
+Generated: 2026-08-15T16:07:04.133609+00:00
+Experiment ID: `tier1-20260815-ua-fix`
 Offline mode: `False`
 
 ## Q1 — `single_source_factual`
@@ -12,18 +12,18 @@ Offline mode: `False`
 **outcome_final:** `completed`
 
 **evidence_fingerprint:**
-- source_ids: `['arxiv:2305.12318v1']`
-- tools_used: `['arxiv']`
+- source_ids: `['wikipedia:Discount_window']`
+- tools_used: `['wikipedia']`
 
 **Answer:**
 
-The Federal Reserve's discount window is a facility that provides liquidity to banks and other financial institutions during times of financial stress. The discount window is a key tool for the Federal Reserve to implement monetary policy and stabilize the financial system. The Federal Reserve's quantitative easing (QE) programs, liquidity facilities, and forward guidance operations are examples of the Fed's use of the discount window. The QE operations positively affected U.S. real GDP, but did not significantly impact U.S. inflation. The results of the study suggest that the current high inflation rates are likely due to factors other than the QE programs implemented in response to the COVID-19 pandemic.
+The Federal Reserve's discount window is an instrument of monetary policy. The discount window allows eligible institutions to borrow money from the central bank. The discount window is used to meet temporary shortages of liquidity caused by internal or external disruptions. The discount window is usually used on a short-term basis.
 
 **Citations:**
 
-- `arxiv:2305.12318v1` — The Federal Reserve's Response to the Global Financial Crisis and Its Long-Term Impact: An Interrupted Time-Series Natural Experimental Analysis
+- `wikipedia:Discount_window` — Discount window
 
-**Trace:** `traces/2c92b146-a6c3-4ee6-a478-2d9bd1e35e26.jsonl`
+**Trace:** `traces/74728a3d-9e33-4ce7-b0c2-48870792f595.jsonl`
 
 ## Q2 — `single_source_factual`
 
@@ -33,18 +33,19 @@ The Federal Reserve's discount window is a facility that provides liquidity to b
 **outcome_final:** `completed`
 
 **evidence_fingerprint:**
-- source_ids: `['arxiv:1211.5517v1']`
-- tools_used: `['arxiv']`
+- source_ids: `['arxiv:1211.5517v1', 'wikipedia:Basel_III']`
+- tools_used: `['arxiv', 'wikipedia']`
 
 **Answer:**
 
-Basel III introduces new capital charges for CVA. Basel III capital requirements for banks include charges for CVA. CDSs can provide capital relief under Basel III.
+Basel III is a framework that sets international standards and minimums for bank capital requirements, stress tests, liquidity regulations, and leverage. Basel III was developed in response to the deficiencies in financial regulation revealed by the 2008 financial crisis. Basel III introduces new capital charges for CVA. Basel III aims to mitigate the risk of bank runs and bank failures. CDSs can provide capital relief under Basel III. The capital relief provided by CDSs can be priced in, resulting in differential pricing for IMM and non-IMM banks. Up to 50% of observed CDS spread could be due to priced in capital relief.
 
 **Citations:**
 
+- `wikipedia:Basel_III` — Basel III
 - `arxiv:1211.5517v1` — CDS pricing under Basel III: capital relief and default protection
 
-**Trace:** `traces/12d0c15c-8af0-477a-9164-443c88b44fcd.jsonl`
+**Trace:** `traces/cefee3f7-6a8a-40f8-8e96-2a601221e558.jsonl`
 
 ## Q3 — `academic_search`
 
@@ -54,39 +55,41 @@ Basel III introduces new capital charges for CVA. Basel III capital requirements
 **outcome_final:** `completed`
 
 **evidence_fingerprint:**
-- source_ids: `['arxiv:2306.04338v1']`
-- tools_used: `['arxiv']`
+- source_ids: `['arxiv:2306.04338v1', 'wikipedia:Credit_risk']`
+- tools_used: `['arxiv', 'wikipedia']`
 
 **Answer:**
 
-Recent academic research exists on using machine learning for credit risk assessment. Machine learning techniques are used in official statistics to enable timely, insightful, and flexible reporting. Changes in data sources pose significant risks in the context of machine learning for official statistics. Concept drift, bias, availability, validity, accuracy, and completeness are technical effects of changing data sources. Robustness in data sourcing and statistical techniques is crucial for maintaining integrity and reliability in machine learning-based official statistics.
+Recent academic research exists on using machine learning for credit risk assessment. Credit risk is the chance that a borrower does not repay a loan or fulfill a loan obligation. Measures of borrowing costs such as yield spreads can be used to infer credit risk levels based on assessments by market participants. Machine learning-based official statistics can maintain integrity, reliability, consistency, and relevance in policy-making, decision-making, and public discourse.
 
 **Citations:**
 
 - `arxiv:2306.04338v1` — Changing Data Sources in the Age of Machine Learning for Official Statistics
+- `wikipedia:Credit_risk` — Credit risk
 
-**Trace:** `traces/ba5ef28a-e2d4-4651-8624-120209ac8061.jsonl`
+**Trace:** `traces/94dcd63c-7556-42a3-8e7f-b447888941b9.jsonl`
 
 ## Q4 — `multi_source_synthesis`
 
 **Question:** How did the Federal Reserve's monetary policy response to the 2008 financial crisis differ from its response to COVID-19?
 
 **mode_final:** `caveated`  
-**outcome_final:** `insufficient_evidence`
+**outcome_final:** `completed`
 
 **evidence_fingerprint:**
-- source_ids: `['arxiv:2007.15419v1']`
-- tools_used: `['arxiv']`
+- source_ids: `['arxiv:2007.15419v1', 'wikipedia:Federal_Reserve']`
+- tools_used: `['arxiv', 'wikipedia']`
 
 **Answer:**
 
-The Federal Reserve engaged in expansionary monetary policy during the COVID-19 recession. The Federal Reserve's monetary policy response to the 2008 financial crisis differed from its response to COVID-19. The monetary expansion caused higher output growth and stock market returns, more favorable long-term financing conditions and a depreciation of the US dollar compared to a no-policy benchmark scenario.
+The Federal Reserve's monetary policy response to the 2008 financial crisis differed from its response to COVID-19. The Federal Reserve implemented expansionary monetary policy in response to the COVID-19 recession. The monetary expansion caused higher output growth and stock market returns in response to the COVID-19 recession. The Federal Reserve's monetary policy response to the 2008 financial crisis is not explicitly described in the provided evidence.
 
 **Citations:**
 
 - `arxiv:2007.15419v1` — Measuring the Effectiveness of US Monetary Policy during the COVID-19 Recession
+- `wikipedia:Federal_Reserve` — Federal Reserve
 
-**Trace:** `traces/63a0f830-cc93-4552-acce-ec279fb78bfa.jsonl`
+**Trace:** `traces/8c39353c-5d1e-464b-a984-f00143c2b337.jsonl`
 
 ## Q5 — `data_retrieval`
 
@@ -96,18 +99,19 @@ The Federal Reserve engaged in expansionary monetary policy during the COVID-19 
 **outcome_final:** `insufficient_evidence`
 
 **evidence_fingerprint:**
-- source_ids: `['arxiv:2304.00544v1']`
-- tools_used: `['arxiv']`
+- source_ids: `['arxiv:2304.00544v1', 'wikipedia:List_of_countries_by_unemployment_rate']`
+- tools_used: `['arxiv', 'wikipedia']`
 
 **Answer:**
 
-The current US unemployment rate is not explicitly stated in the provided evidence. Occupational mobility due to workers' changing career prospects interacts with aggregate conditions to drive the fluctuations of the unemployment duration distribution and the aggregate unemployment rate. The unemployment rate in the US is procyclical, meaning it tends to increase during economic downturns and decrease during economic booms. The net occupational mobility in the US is countercyclical, meaning it tends to decrease during economic downturns and increase during economic booms. The large volatility of unemployment in the US is consistent with the model developed in the provided evidence. The cyclical properties of the unemployment duration distribution in the US are consistent with the model developed in the provided evidence. The change in the US unemployment rate over the past year is not explicitly stated in the provided evidence.
+The unemployment rate varies across countries due to differences in calculation and presentation methods. The cyclicality of occupational mobility shapes the aggregate unemployment rate and its duration distribution. The US unemployment rate has fluctuated over the business cycle.
 
 **Citations:**
 
+- `wikipedia:List_of_countries_by_unemployment_rate` — List of countries by unemployment rate
 - `arxiv:2304.00544v1` — Unemployment and Endogenous Reallocation over the Business Cycle
 
-**Trace:** `traces/8751c4c9-ef1d-4b79-82bd-9bface0515a5.jsonl`
+**Trace:** `traces/bb755796-deb0-4d16-9958-cba635234c72.jsonl`
 
 ## Q6 — `cross_tool_synthesis`
 
@@ -117,18 +121,19 @@ The current US unemployment rate is not explicitly stated in the provided eviden
 **outcome_final:** `insufficient_evidence`
 
 **evidence_fingerprint:**
-- source_ids: `['wikipedia:Inverted_yield_curve']`
+- source_ids: `['wikipedia:Inverted_yield_curve', 'wikipedia:Yield_curve']`
 - tools_used: `['wikipedia']`
 
 **Answer:**
 
-An inverted yield curve is a yield curve in which short-term debt instruments have a greater yield than longer term bonds. An inverted yield curve is an unusual phenomenon; bonds with shorter maturities generally provide lower yields than longer term bonds.
+In finance, an inverted yield curve is a yield curve in which short-term debt instruments have a greater yield than longer term bonds. An inverted yield curve is an unusual phenomenon; bonds with shorter maturities generally provide lower yields than longer term bonds. A yield curve shows the relationship between yields and time to maturity for a set of comparable debt securities. In practice the term usually refers to curves built from a single issuer or market segment so that credit quality and other features are as similar as possible, for example the U.S. Trea A yield curve shows the relationship between yields and time to maturity for a set of comparable debt securities. In practice the term usually refers to curves built from a single issuer or market segment so that credit quality and other features are as similar as possible, for example the U.S. Trea
 
 **Citations:**
 
 - `wikipedia:Inverted_yield_curve` — Inverted yield curve
+- `wikipedia:Yield_curve` — Yield curve
 
-**Trace:** `traces/f5d75e7c-40a2-4378-ab41-73036e1fcc9a.jsonl`
+**Trace:** `traces/e9f2e325-d0af-4278-8769-2d69ec3df8ae.jsonl`
 
 ## Q7 — `out_of_scope`
 
@@ -149,7 +154,7 @@ question_type=out_of_scope: subjective or non-citable question
 
 - (none)
 
-**Trace:** `traces/3027f08a-2d03-4749-af4f-1d3545de605e.jsonl`
+**Trace:** `traces/fbc53f23-6893-40f4-8858-92b66e0fde13.jsonl`
 
 ## Q8 — `speculative`
 
@@ -170,6 +175,6 @@ Quantum computing poses a threat to banking encryption. Signed quantum key estab
 
 - `arxiv:1109.3235v1` — A new spin on quantum cryptography: Avoiding trapdoors and embracing public keys
 
-**Trace:** `traces/9ee1b58e-4533-42a7-9e52-e6aba3e59830.jsonl`
+**Trace:** `traces/36bed714-d7b9-406c-9945-624ac1fe8c9a.jsonl`
 
-**Groq complete() calls (live HTTP successes):** `24`
+**Groq complete() calls (live HTTP successes):** `21`
