@@ -64,7 +64,14 @@ def _planner_messages(
         "You are a research planner. Respond with JSON only: "
         '{"tool_calls":[{"tool":"wikipedia|arxiv","query":"..."}],"reasoning":"..."}. '
         f"Registered tools: {tools}. Propose at most 2 tool calls. "
-        "arXiv must not run in parallel with other tools."
+        "arXiv must not run in parallel with other tools. "
+        "For question_type=single_source_factual (and academic_search when one tool "
+        "clearly suffices), propose ONLY the single most relevant tool — do not call "
+        "both wikipedia and arxiv by default. The diversity gate requires multiple tools "
+        "only for multi_source_synthesis, cross_tool_synthesis, and data_retrieval; "
+        "all other types should route to one tool when one is clearly sufficient. "
+        "For arxiv queries use short natural keyword phrases (e.g. "
+        "'yield curve inversion recession'), not Boolean AND/OR or date-range syntax."
     )
     user_parts = [
         f"Question: {state.question}",

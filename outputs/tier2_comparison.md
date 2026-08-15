@@ -9,7 +9,19 @@ Paired runs share `question_ref` and `experiment_id`; they differ only by `varia
 ## Live run notes (`tier2-live-20260815-rerun`)
 
 - **Q4 — clean proof point:** Both variants reached `completed` with **arxiv + wikipedia** in `tools_used`. Sufficiency passed on round 0 for both; refine did not change outcome (no extra plan cycles). Confirms multi-tool diversity gate passes live when both tools return evidence.
-- **Q6 — same Tier 1 routing gap (not debugged):** arXiv **was called** on every plan cycle but returned `empty_result` (`arxiv search returned no entries`). Diversity gate fails with wikipedia-only matched evidence → `insufficient_evidence`. Refine adds a second wikipedia source (`Yield_curve`) but cannot satisfy cross-tool diversity without ok arXiv evidence.
+- **Q6 — same Tier 1 routing gap (pre-fix):** arXiv **was called** on every plan cycle but returned `empty_result` (`arxiv search returned no entries`). Diversity gate fails with wikipedia-only matched evidence → `insufficient_evidence`. Refine adds a second wikipedia source (`Yield_curve`) but cannot satisfy cross-tool diversity without ok arXiv evidence.
+
+## Post-fix spot-check (`spot-check-20260815`) — not a full Tier 2 re-run
+
+After arXiv query normalization (`prepare_arxiv_search_query`) and planner single-tool routing fix, **Q6 refine only** was re-run live once:
+
+| Q | variant | mode_final | outcome_final | tools_used | Groq |
+|---|---------|------------|---------------|------------|------|
+| **Q6** | refine | `grounded` | **`completed`** | `arxiv`, `wikipedia` | **2** |
+
+Trace: `traces/55b889f3-6b3d-4c01-b7d8-7269072f15c6.jsonl`. Prior batch rows below are **pre-fix** and left unchanged.
+
+**Note:** Full Tier 2 paired re-run after this fix was not completed due to time — spot-checked Q6 refine only.
 
 ## Q4 — `multi_source_synthesis`
 

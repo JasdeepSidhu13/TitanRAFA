@@ -110,3 +110,26 @@ Each run writes `traces/{run_id}.jsonl`:
 - `SINGLE_PASS=1` disables refine rounds (Tier 2 A/B)
 - Trace schema: `agentstate.py`
 - Prompt interaction log: `prompt-log.md` (append-only)
+
+## Performance & Limitations
+
+| Fix | Status | Evidence |
+|-----|--------|----------|
+| **Q6 arXiv `empty_result`** | **Fixed** | Prior query `(yield curve inversion) AND (recession) AND (2020:2024)` returned no entries; `prepare_arxiv_search_query()` strips Boolean/date syntax before the API call. Post-fix Q6 refine spot-check: `completed`, `tools_used=['arxiv','wikipedia']`, 2 Groq calls. |
+| **Planner over-calling both tools on `single_source_factual`** | **Fixed** | Planner prompt now instructs single-tool routing for `single_source_factual`. Post-fix Q1 spot-check: planner proposed **wikipedia only**, `completed`, 2 Groq calls. |
+
+Full Tier 1 batch re-verification after these fixes was **not** completed due to time — spot-checked on **Q1** and **Q6** only.
+
+Known remaining limits:
+- arXiv rate limiting makes full live batches slow; use `OFFLINE_MODE=1` for CI.
+- FRED (`data_retrieval` / Q5) is not wired in Tier 1–2.
+- Planner behavior is LLM-dependent; prompt fixes reduce but do not eliminate mis-routing.
+- Tier 2 comparison file still shows pre-fix Q6 paired runs; only post-fix Q6 refine spot-check is recorded above.
+
+## What I'd do with more time
+
+1. Re-run full Tier 1 batch and Tier 2 paired comparison live post-fix.
+2. Wire FRED for Q5 (`data_retrieval`) and extend diversity gate for data + narrative sources.
+3. Add deterministic post-planner validation: cap `single_source_factual` / `academic_search` to one tool when the plan proposes two.
+4. Harden arXiv query shaping in the planner repair loop (reject Boolean syntax before tool invoke).
+5. Merge Tier 1 Wikipedia User-Agent fix narrative into main README verification table (post-merge cleanup).
