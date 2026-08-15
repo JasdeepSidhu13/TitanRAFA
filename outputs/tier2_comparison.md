@@ -1,15 +1,15 @@
 # Tier 2 Comparison (Q4 & Q6: single_pass vs refine)
 
-Generated: 2026-08-15T16:27:50.573694+00:00
-Experiment ID: `tier2-live-20260815`
+Generated: 2026-08-15T16:33:55.846783+00:00
+Experiment ID: `tier2-live-20260815-rerun`
 Offline mode: `False`
 
 Paired runs share `question_ref` and `experiment_id`; they differ only by `variant`.
 
-## Live run notes (`tier2-live-20260815`)
+## Live run notes (`tier2-live-20260815-rerun`)
 
-- **Q4 — clean proof point:** Both variants reached `completed` with **arxiv + wikipedia** in `tools_used`. Sufficiency passed on round 0 for both; refine did not change outcome (no extra plan cycles). Confirms multi-tool diversity gate can pass live when both tools return evidence.
-- **Q6 — same Tier 1 pattern (not debugged):** arXiv **was called** on every plan cycle but returned `empty_result` (`arxiv search returned no entries`). Diversity gate fails with wikipedia-only matched evidence → `insufficient_evidence`. Refine adds a second wikipedia source (`Yield_curve`) but cannot satisfy cross-tool diversity without ok arXiv evidence.
+- **Q4 — clean proof point:** Both variants reached `completed` with **arxiv + wikipedia** in `tools_used`. Sufficiency passed on round 0 for both; refine did not change outcome (no extra plan cycles). Confirms multi-tool diversity gate passes live when both tools return evidence.
+- **Q6 — same Tier 1 routing gap (not debugged):** arXiv **was called** on every plan cycle but returned `empty_result` (`arxiv search returned no entries`). Diversity gate fails with wikipedia-only matched evidence → `insufficient_evidence`. Refine adds a second wikipedia source (`Yield_curve`) but cannot satisfy cross-tool diversity without ok arXiv evidence.
 
 ## Q4 — `multi_source_synthesis`
 
@@ -24,7 +24,7 @@ Paired runs share `question_ref` and `experiment_id`; they differ only by `varia
 - source_ids: `['arxiv:2007.15419v1', 'wikipedia:Federal_Reserve']`
 - tools_used: `['arxiv', 'wikipedia']`
 
-**Trace:** `traces/0d178930-3a1a-47a1-a410-ade7b00f3afe.jsonl`
+**Trace:** `traces/ffa98845-e7fc-45ca-a0a0-a4f3a6fbe0e3.jsonl`
 
 **Event sequence:** `0:run_header → 1:answerability → 2:plan → 3:tool_result → 4:tool_result → 5:sufficiency → 6:synthesize → 7:run_complete`
 
@@ -39,7 +39,7 @@ Paired runs share `question_ref` and `experiment_id`; they differ only by `varia
 - source_ids: `['arxiv:2007.15419v1', 'wikipedia:Federal_Reserve']`
 - tools_used: `['arxiv', 'wikipedia']`
 
-**Trace:** `traces/36d514b1-574f-4dcb-bb1e-eeb364434ff3.jsonl`
+**Trace:** `traces/e7f3dc11-03ea-4129-9646-8703dc9879c3.jsonl`
 
 **Event sequence:** `0:run_header → 1:answerability → 2:plan → 3:tool_result → 4:tool_result → 5:sufficiency → 6:synthesize → 7:run_complete`
 
@@ -58,7 +58,7 @@ Paired runs share `question_ref` and `experiment_id`; they differ only by `varia
 - source_ids: `['wikipedia:Inverted_yield_curve']`
 - tools_used: `['wikipedia']`
 
-**Trace:** `traces/7065cc22-ef6c-41c5-8848-7e0deb3f6613.jsonl`
+**Trace:** `traces/e0cd304a-1f8f-4e9e-ae69-af64c8744b14.jsonl`
 
 **Event sequence:** `0:run_header → 1:answerability → 2:plan → 3:tool_result → 4:tool_result → 5:sufficiency → 6:synthesize → 7:run_complete`
 
@@ -73,7 +73,7 @@ Paired runs share `question_ref` and `experiment_id`; they differ only by `varia
 - source_ids: `['wikipedia:Inverted_yield_curve', 'wikipedia:Yield_curve']`
 - tools_used: `['wikipedia']`
 
-**Trace:** `traces/09dfdc5f-03a4-4984-abc2-fb0a0cace695.jsonl`
+**Trace:** `traces/752456ce-c4fc-4b33-8c81-9a37b9c71734.jsonl`
 
 **Event sequence:** `0:run_header → 1:answerability → 2:plan → 3:tool_result → 4:tool_result → 5:sufficiency → 6:plan → 7:tool_result → 8:dedup_skip → 9:sufficiency → 10:plan → 11:tool_result → 12:tool_result → 13:sufficiency → 14:synthesize → 15:run_complete`
 
