@@ -1459,3 +1459,37 @@ Fully implemented `synthesizer.py` with mechanical mode enforcement and trace lo
 **Verified Q8 offline:** speculative inference claim added, `mode_enforced=caveated`, `caused_by` = sufficiency event id.
 
 ---
+
+## Interaction 14
+
+### User Prompt
+Add tests/test_pure_functions.py covering: dedup normalization, 
+answerability/sufficiency rules (including the question_type diversity 
+gate AND the data_retrieval rule), claim-to-source_id validation, 
+mode_model-vs-mode_enforced forcing, and the run_complete cross-field 
+invariants (refusal_reason non-null only when mode_final=refused; 
+outcome_final=out_of_scope only with mode_final=refused; 
+outcome_final=insufficient_evidence never with mode_final=refused). Add 
+one smoke test running the full pipeline in OFFLINE_MODE end-to-end, 
+asserting a valid run_complete with all four required fields present. 
+Add scripts/run_tier1.sh that imports all modules and fails fast on any 
+import/environment error.
+
+### Cursor Response
+Added `tests/test_pure_functions.py` (29 cases) and `scripts/run_tier1.sh`.
+
+## `tests/test_pure_functions.py`
+
+- **Dedup:** `Tool.normalize_query` parametrized cases + duplicate detection
+- **Answerability:** out_of_scope type, keyword `best`, in-scope factual
+- **Sufficiency:** diversity gate (question_type primary) fail/pass; data_retrieval rejects Wikipedia substitute
+- **Claims:** source_id validation accept/reject; inference without source_id
+- **Mode:** `mode_enforced` forced caveated on inference; grounded when all grounded
+- **run_complete invariants:** valid combos accepted; invalid combos rejected (refusal_reason, out_of_scope pairing, insufficient_evidence never with refused)
+- **Smoke:** subprocess offline pipeline → `run_complete` with all four fields + `validate_run_complete` passes
+
+## `scripts/run_tier1.sh`
+
+Imports all 18 project modules (fail fast on error), then runs `pytest tests/test_pure_functions.py -v`.
+
+---
