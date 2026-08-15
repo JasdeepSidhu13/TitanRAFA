@@ -41,6 +41,7 @@ from constants import load_policy
 from fixtures.loader import is_offline_mode, set_offline_mode
 from planner import run_planner
 from run_context import RunContext
+from run_result import RunResult, extract_run_result, format_cli_output
 from synthesizer import run_synthesizer
 from tools import ArxivTool, WikipediaTool
 from tools.base import Tool
@@ -366,29 +367,44 @@ def _run_agent(state: AgentState, ctx: RunContext, *, offline: bool) -> None:
         _write_insufficient_complete(state, synth)
 
 
-def main(argv: Optional[list[str]] = None) -> int:
-    """CLI entry: parse args, run agent, print trace path."""
-    parser = argparse.ArgumentParser(description="Banking research agent")
-    parser.add_argument("question", help="Natural-language research question")
-    parser.add_argument("--offline", action="store_true", help="Replay offline fixtures")
-    parser.add_argument("--question-ref", default="", help="e.g. Q4")
-    parser.add_argument("--question-type", default="", help="Canonical question_type tag")
-    parser.add_argument(
-        "--variant",
-        choices=["single_pass", "refine"],
-        default="refine",
-        help="Tier 2 variant",
-    )
-    parser.add_argument("--experiment-id", default=None, help="Optional batch experiment id")
-    args = parser.parse_args(argv)
+def run_question(
+    question: str,
+    *,
+    question_ref: str = "",
+    question_type: str = "",
+    offline: bool = False,
+    variant: str = "refine",
+    experiment_id: Optional[str] = None,
+) -> RunResult:
+    """Execute one agent run and return structured output.
 
-    offline = is_offline_mode(args.offline)
+    Description:
+        Creates AgentState, runs the full orchestrator loop, and extracts
+        answer, citations, and terminal fields for CLI or batch output.
+
+    Input:
+        question: Natural-language research question.
+        question_ref: Optional tag e.g. Q4.
+        question_type: Canonical question_type for header/sufficiency.
+        offline: Replay fixtures without API keys.
+        variant: single_pass or refine.
+        experiment_id: Optional batch experiment id.
+
+    Output:
+        RunResult with answer, citations, mode_final, outcome_final, trace path.
+
+    When to use:
+        CLI, batch runner, and tests.
+
+    When not to use:
+        N/A.
+    """
     set_offline_mode(offline)
     _require_groq_key(offline)
 
     refine_disabled = os.environ.get("SINGLE_PASS", "") == "1"
-    variant = "single_pass" if refine_disabled else args.variant
-    speculative = args.question_type == "speculative"
+    effective_variant = "single_pass" if refine_disabled else variant
+    speculative = question_type == "speculative"
 
     _ = load_policy()
     _ = load_groq_policy()
@@ -396,11 +412,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     ctx = RunContext.from_bounds(bounds)
 
     state = AgentState(
-        question=args.question,
-        question_ref=args.question_ref,
-        question_type=args.question_type,
-        variant=variant,
-        experiment_id=args.experiment_id,
+        question=question,
+        question_ref=question_ref,
+        question_type=question_type,
+        variant=effective_variant,
+        experiment_id=experiment_id,
         refine_disabled=refine_disabled,
         speculative=speculative,
         config=RunConfig(
@@ -437,7 +453,35 @@ def main(argv: Optional[list[str]] = None) -> int:
                 refusal_reason=None,
             )
 
-    print(f"Trace written to: {state.trace_path}")
+    return extract_run_result(state)
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    """CLI entry: parse args, run agent, print answer and trace metadata."""
+    parser = argparse.ArgumentParser(description="Banking research agent")
+    parser.add_argument("question", help="Natural-language research question")
+    parser.add_argument("--offline", action="store_true", help="Replay offline fixtures")
+    parser.add_argument("--question-ref", default="", help="e.g. Q4")
+    parser.add_argument("--question-type", default="", help="Canonical question_type tag")
+    parser.add_argument(
+        "--variant",
+        choices=["single_pass", "refine"],
+        default="refine",
+        help="Tier 2 variant",
+    )
+    parser.add_argument("--experiment-id", default=None, help="Optional batch experiment id")
+    args = parser.parse_args(argv)
+
+    offline = is_offline_mode(args.offline)
+    result = run_question(
+        args.question,
+        question_ref=args.question_ref,
+        question_type=args.question_type,
+        offline=offline,
+        variant=args.variant,
+        experiment_id=args.experiment_id,
+    )
+    print(format_cli_output(result))
     return 0
 
 

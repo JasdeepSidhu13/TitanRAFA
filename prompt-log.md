@@ -1490,6 +1490,6 @@ Added `tests/test_pure_functions.py` (29 cases) and `scripts/run_tier1.sh`.
 
 ## `scripts/run_tier1.sh`
 
-Imports all 18 project modules (fail fast on error), then runs `pytest tests/test_pure_functions.py -v`.
+Imports all project modules (fail fast on error), then runs `pytest tests/test_pure_functions.py -v`.
 
 ---

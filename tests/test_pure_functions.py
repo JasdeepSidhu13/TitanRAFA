@@ -277,6 +277,10 @@ def test_offline_pipeline_smoke_produces_valid_run_complete():
         check=False,
     )
     assert result.returncode == 0, result.stderr
+    assert "Answer:" in result.stdout
+    assert "mode_final:" in result.stdout
+    assert "outcome_final:" in result.stdout
+    assert "Trace:" in result.stdout
 
     trace_files = sorted(
         (REPO_ROOT / "traces").glob("*.jsonl"), key=lambda p: p.stat().st_mtime
