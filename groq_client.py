@@ -22,6 +22,21 @@ from run_context import RunContext
 
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 
+# Observable counter incremented on each successful outbound Groq HTTP completion
+# via GroqClient.complete() (one count per _post_once that returns ok=True).
+_groq_complete_call_count: int = 0
+
+
+def get_groq_complete_call_count() -> int:
+    """Return the number of successful Groq complete() calls this process."""
+    return _groq_complete_call_count
+
+
+def reset_groq_complete_call_count() -> None:
+    """Reset the Groq complete() call counter (batch runner uses at start)."""
+    global _groq_complete_call_count
+    _groq_complete_call_count = 0
+
 
 @dataclass
 class GroqCallResult:
@@ -59,6 +74,36 @@ class GroqClient:
     def __init__(self, policy: Optional[GroqPolicy] = None) -> None:
         self.policy = policy or load_groq_policy()
         self._api_key = os.environ.get("GROQ_API_KEY", "").strip()
+
+    def complete(
+        self,
+        messages: list[dict[str, str]],
+        ctx: RunContext,
+        *,
+        model: Optional[str] = None,
+    ) -> GroqCallResult:
+        """Call Groq chat completions; increment counter on each HTTP success.
+
+        Description:
+            Wrapper around the retry loop used by planner and synthesizer.
+            Increments the process-wide complete() counter once per
+            successful outbound HTTP response (ok=True).
+
+        Input:
+            messages: OpenAI-format chat messages.
+            ctx: Run context for deadline and mass-429 tracking.
+            model: Override model id.
+
+        Output:
+            GroqCallResult with content or failure reason.
+
+        When to use:
+            All live planner and synthesizer LLM calls.
+
+        When not to use:
+            Offline fixture replay.
+        """
+        return self.chat_json(messages, ctx, model=model)
 
     def chat_json(
         self,
@@ -198,6 +243,8 @@ class GroqClient:
         except (KeyError, ValueError, TypeError) as exc:
             return GroqCallResult(ok=False, content="", reason=f"groq parse error: {exc}")
 
+        global _groq_complete_call_count
+        _groq_complete_call_count += 1
         return GroqCallResult(ok=True, content=content, reason="ok")
 
     @staticmethod

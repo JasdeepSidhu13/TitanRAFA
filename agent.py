@@ -38,6 +38,7 @@ from checks import (
 )
 from constants import load_groq_policy, load_loop_bounds
 from constants import load_policy
+from env_loader import load_dotenv
 from fixtures.loader import is_offline_mode, set_offline_mode
 from planner import run_planner
 from run_context import RunContext
@@ -400,6 +401,7 @@ def run_question(
         N/A.
     """
     set_offline_mode(offline)
+    load_dotenv()
     _require_groq_key(offline)
 
     refine_disabled = os.environ.get("SINGLE_PASS", "") == "1"

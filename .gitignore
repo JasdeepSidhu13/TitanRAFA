@@ -3,5 +3,3 @@
 __pycache__/
 *.pyc
 .ratelimit_state.json
-traces/
-outputs/

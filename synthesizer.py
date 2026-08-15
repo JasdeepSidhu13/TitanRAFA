@@ -384,7 +384,7 @@ def run_synthesizer(
                 event=None, retry_exhausted_reason=ctx.aborted_reason
             )
 
-        result = client.chat_json(messages, ctx, model=model_id)
+        result = client.complete(messages, ctx, model=model_id)
         if ctx.groq_degraded_reason:
             return SynthesizerOutcome(
                 event=None, degraded_reason=ctx.groq_degraded_reason

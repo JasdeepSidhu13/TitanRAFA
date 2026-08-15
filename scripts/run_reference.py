@@ -18,7 +18,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from agent import run_question
+from env_loader import load_dotenv
 from fixtures.loader import is_offline_mode, set_offline_mode
+from groq_client import get_groq_complete_call_count, reset_groq_complete_call_count
 from run_result import format_tier1_section
 from scripts.reference_loader import load_reference_questions
 
@@ -46,6 +48,8 @@ def run_tier1_batch(*, offline: bool = False, experiment_id: str | None = None) 
         Single-question debugging — use ``python agent.py``.
     """
     set_offline_mode(offline)
+    load_dotenv()
+    reset_groq_complete_call_count()
     questions = load_reference_questions()
     if not questions:
         raise RuntimeError("No reference questions parsed from config/reference_questions.md")
@@ -73,7 +77,11 @@ def run_tier1_batch(*, offline: bool = False, experiment_id: str | None = None) 
         print(format_cli_summary(result), file=sys.stderr)
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    groq_calls = get_groq_complete_call_count()
+    sections.append(f"**Groq complete() calls (live HTTP successes):** `{groq_calls}`")
+    sections.append("")
     OUTPUT_PATH.write_text("\n".join(sections), encoding="utf-8")
+    print(f"Groq complete() call count: {groq_calls}", file=sys.stderr)
     print(f"Wrote {OUTPUT_PATH}", file=sys.stderr)
     return OUTPUT_PATH
 
@@ -94,6 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     offline = is_offline_mode(args.offline)
+    load_dotenv()
     try:
         run_tier1_batch(offline=offline, experiment_id=args.experiment_id)
     except Exception as exc:  # noqa: BLE001
