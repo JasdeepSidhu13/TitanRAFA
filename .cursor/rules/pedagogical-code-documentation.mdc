@@ -1,0 +1,156 @@
+---
+description: Require clear, pedagogical documentation for all new or materially modified code.
+alwaysApply: true
+---
+
+# Pedagogical Code Documentation
+
+## Purpose
+
+Make all new or materially modified code easy for a reviewer to understand. Comments and documentation should explain what the code does, why the design exists, and how it fits into the broader system.
+
+Prefer explanations of **why** over comments that merely restate syntax.
+
+### Example
+
+Bad:
+
+```python
+step += 1  # Increment step.
+```
+
+Good:
+
+```python
+# The step budget guarantees termination even if the planner repeatedly
+# requests actions that do not produce useful evidence.
+step += 1
+```
+
+## General Principle
+
+Document:
+
+- what the code does;
+- why the design exists;
+- important architectural boundaries;
+- invariants and safeguards;
+- non-obvious control flow;
+- failure handling;
+- relevant tradeoffs.
+
+## Functions and Methods
+
+Every new or materially modified Python function or method must contain a docstring as its first statement.
+
+Use these sections:
+
+- `Description` — includes when to use, when not to use, and any edge cases.
+- `Input`
+- `Output`
+- `When to use`
+- `When not to use`
+
+Keep sections concise for simple helpers rather than creating unnecessary documentation volume.
+
+### Example
+
+```python
+def validate_citation(
+    source_id: str,
+    evidence: list[EvidenceItem],
+) -> bool:
+    """Verify that a citation references evidence retrieved in this run.
+
+    Description:
+        Checks whether source_id belongs to evidence produced during the
+        current agent execution.
+
+    Input:
+        source_id:
+            Stable source identifier.
+        evidence:
+            Evidence collected from tool calls during the current run.
+
+    Output:
+        True when source_id matches retrieved evidence; otherwise False.
+
+    When to use:
+        Before exposing synthesized citations in the final answer.
+
+    When not to use:
+        Do not use this function to determine factual correctness. It verifies
+        provenance membership only.
+
+    """
+```
+
+## Modules and Classes
+
+### Modules
+
+New production modules must have a module-level docstring explaining:
+
+- responsibility;
+- role in the agent architecture;
+- important dependencies or invariants where relevant.
+
+### Classes
+
+New or materially modified classes must document:
+
+- responsibility;
+- lifecycle;
+- relationship to other components;
+- important state or invariants.
+
+## Inline Comments
+
+Add comments where logic is non-obvious, especially around:
+
+- planner/runtime boundaries;
+- termination safeguards;
+- evidence provenance;
+- citation validation;
+- state transitions;
+- retries and failures;
+- duplicate-action handling;
+- API quirks;
+- timeouts;
+- scoring thresholds.
+
+Do not add comments that merely restate obvious code.
+
+## Tests
+
+For non-trivial tests, document:
+
+- the behavior being verified;
+- the failure mode being protected against;
+- the relevant assessment requirement when useful.
+
+## Scope
+
+This rule applies to:
+
+- production code;
+- tests;
+- utilities;
+- CLI code;
+- tool integrations;
+- evaluation code.
+
+It applies only to **new or materially modified code**. Do not modify unrelated existing code solely to add documentation.
+
+Static configuration and JSON/YAML data files are exempt unless documentation is materially useful.
+
+## Completion Check
+
+Before completing any coding interaction, verify:
+
+- every new or materially modified function has the required docstring;
+- new production modules have module documentation;
+- important classes are documented;
+- non-obvious logic has useful comments;
+- tests explain non-obvious behavioral guarantees;
+- documentation still matches the implementation.
