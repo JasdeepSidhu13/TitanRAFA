@@ -273,6 +273,7 @@ def _run_agent(state: AgentState, ctx: RunContext, *, offline: bool) -> None:
     plan_caused_by: Optional[int] = None
     sufficiency_reason: Optional[str] = None
     last_suff: Optional[SufficiencyEvent] = None
+    last_plan: Optional[PlanEvent] = None
     sufficiency_passed = False
 
     while True:
@@ -304,6 +305,7 @@ def _run_agent(state: AgentState, ctx: RunContext, *, offline: bool) -> None:
 
         plan = planner_out.plan
         state.append_event(plan)
+        last_plan = plan
 
         if not ctx.has_budget():
             ctx.aborted_reason = "run_timeout_s exceeded after plan"
@@ -327,7 +329,13 @@ def _run_agent(state: AgentState, ctx: RunContext, *, offline: bool) -> None:
         sufficiency_reason = last_suff.reason
         state.refine_round += 1
 
-    synth_caused_by = last_suff.event_id if last_suff else answer.event_id
+    if last_suff is not None:
+        synth_caused_by = last_suff.event_id
+    elif last_plan is not None:
+        synth_caused_by = last_plan.event_id
+    else:
+        synth_caused_by = answer.event_id
+
     synth_out = run_synthesizer(
         state,
         ctx,
@@ -349,10 +357,10 @@ def _run_agent(state: AgentState, ctx: RunContext, *, offline: bool) -> None:
         return
 
     synth = synth_out.event
-    if synth is not None:
-        state.append_event(synth)
+    if synth is None:
+        return
 
-    if sufficiency_passed and synth is not None:
+    if sufficiency_passed:
         _write_completed(state, synth)
     else:
         _write_insufficient_complete(state, synth)

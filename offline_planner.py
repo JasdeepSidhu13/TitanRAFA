@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from agentstate import PlanEvent, SynthesizeEvent, ToolResultEvent
+from agentstate import PlanEvent
 
 
 def _extract_topic(question: str) -> str:
@@ -63,69 +63,5 @@ def offline_plan(
         planner_input_summary=[],
         validation_errors=[],
         repair_count=0,
-        model_id="offline-fixture",
-    )
-
-
-def offline_synthesize(
-    *,
-    state_tool_results: list[ToolResultEvent],
-    sufficiency_passed: bool,
-    speculative: bool,
-    caused_by: int,
-    refine_round: int,
-) -> SynthesizeEvent:
-    """Build a citation-backed offline answer from tool results."""
-    ok_results = [tr for tr in state_tool_results if tr.ok]
-    claims: list[dict[str, Any]] = []
-    context_ids: list[int] = []
-    chars_fed = 0
-
-    for tr in ok_results:
-        context_ids.append(tr.event_id)
-        snippet = (tr.content_for_synthesis or tr.content_full)[:500]
-        chars_fed += len(snippet)
-        claims.append(
-            {
-                "text": snippet[:300] if snippet else f"Evidence from {tr.source_id}",
-                "source_id": tr.source_id,
-                "inference": False,
-            }
-        )
-
-    if speculative and claims:
-        claims.append(
-            {
-                "text": "Forward-looking implications remain uncertain without live data.",
-                "source_id": None,
-                "inference": True,
-            }
-        )
-
-    if not ok_results:
-        claims = [
-            {
-                "text": "Insufficient evidence in offline fixtures to answer this question.",
-                "source_id": None,
-                "inference": True,
-            }
-        ]
-        mode_model = "caveated"
-    else:
-        mode_model = "grounded" if sufficiency_passed and not speculative else "caveated"
-
-    mode_enforced = mode_model
-    if any(c.get("inference") for c in claims):
-        mode_enforced = "caveated"
-
-    return SynthesizeEvent(
-        refine_round=refine_round,
-        caused_by=caused_by,
-        mode_model=mode_model,
-        mode_enforced=mode_enforced,
-        claims_raw=claims,
-        claims_validated=claims,
-        context_event_ids=context_ids,
-        chars_fed=chars_fed,
         model_id="offline-fixture",
     )
