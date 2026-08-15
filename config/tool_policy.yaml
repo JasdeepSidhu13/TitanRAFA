@@ -1,0 +1,63 @@
+# Retry / rate-limit policy per tool.
+# Each Tool loads its section at init and self-enforces min_interval_s
+# before every outbound call, independent of prior failures.
+#
+# Do not hardcode these values in tool code — read from this file so the
+# policy is auditable and changeable in one place.
+
+arxiv:
+  min_interval_s: 3.0
+  timeout_s: 10
+  max_retries: 3
+  backoff_base_s: 1.0
+  notes: >
+    arXiv Terms of Use: no more than 1 request every 3 seconds, single
+    connection at a time (https://info.arxiv.org/help/api/tou.html).
+    429/503 responses have been reported even from fully compliant
+    clients — always retry on 429/503, do not treat as a client bug.
+    Limits may change; re-check ToU if errors persist beyond retry budget.
+
+wikipedia:
+  min_interval_s: 1.0
+  timeout_s: 8
+  max_retries: 2
+  backoff_base_s: 0.5
+  notes: >
+    No hard published per-client rate limit, but shared infrastructure —
+    self-throttle as good practice and to avoid IP-based soft blocks.
+
+fred:
+  min_interval_s: 0.5
+  timeout_s: 10
+  max_retries: 2
+  backoff_base_s: 0.5
+  notes: >
+    Tier 3 addition (Option C). CONFIRM the current free-tier request
+    limit at build time before relying on this value — do not assume it
+    is unchanged from any prior reference.
+
+groq:
+  timeout_s: 20
+  max_retries: 2
+  backoff_base_s: 1.0
+  max_output_repair_attempts: 1
+  notes: >
+    Applies to both planner and synthesizer calls. On 429/transient 5xx,
+    retry per above. On schema-invalid output (planner tool_calls JSON,
+    synthesizer claims/citations JSON), issue ONE repair re-prompt with
+    the validation error included; on second failure, fall back to a
+    safe default (planner: empty tool_calls, treated as insufficient
+    evidence; synthesizer: should not be reached if refusal short-circuit
+    in DESIGN.md §5d is implemented correctly). Missing/invalid
+    GROQ_API_KEY must fail fast at startup, not mid-run.
+
+loop_bounds:
+  max_refine_rounds: 2
+  max_planner_cycles: 3
+  max_tool_calls_per_run: 6
+  run_timeout_s: 90
+  circuit_breaker_consecutive_failures: 3
+  notes: >
+    Tier-1 baseline (not deferred to Tier 3). At any cap, proceed to
+    synthesis with mode=caveated or mode=refused based on evidence
+    collected so far — never hang or loop silently past a bound.
