@@ -2058,3 +2058,44 @@ OFFLINE_MODE=1 python3 tier2.py --offline
 - Committed offline batch `tier2-offline-committed`: `outputs/tier2_comparison.md` + 4 trace JSONL files
 
 ---
+
+## Interaction 26
+
+### User Prompt
+Run tier2.py live (not offline) now. Report the actual results for Q4 
+and Q6, both variants — mode_final, outcome_final, evidence_fingerprint. 
+tools_used, Groq call count.
+
+Time-boxed: if this doesn't complete cleanly within a few minutes, or 
+if Q6 shows the same known routing gap from Tier 1 (arXiv not being 
+called), do NOT debug it further — just report the actual output as-is, 
+label it honestly in outputs/tier2_comparison.md, and stop there. Q4 
+already showed genuine multi-tool divergence in earlier testing — if 
+live confirms that, that's your clean proof point regardless of what Q6 
+does. Commit and push whatever the live result is, then tell me you're 
+done — don't wait for a "better" result.
+
+### Cursor Response
+Live batch completed (`tier2-live-20260815`, ~2 min, 12 Groq calls total). Results committed as-is; no further debugging.
+
+## Q4 — `multi_source_synthesis`
+
+| Variant | mode_final | outcome_final | tools_used | source_ids | Groq calls |
+|---------|------------|---------------|------------|------------|------------|
+| **single_pass** | `caveated` | **`completed`** | `['arxiv', 'wikipedia']` | `arxiv:2007.15419v1`, `wikipedia:Federal_Reserve` | **2** |
+| **refine** | `caveated` | **`completed`** | `['arxiv', 'wikipedia']` | `arxiv:2007.15419v1`, `wikipedia:Federal_Reserve` | **2** |
+
+**Proof point:** Both variants pass diversity gate on round 0; refine adds no extra plan cycles. Trace: `0d178930…` (single_pass), `36d514b1…` (refine).
+
+## Q6 — `cross_tool_synthesis`
+
+| Variant | mode_final | outcome_final | tools_used | source_ids | Groq calls |
+|---------|------------|---------------|------------|------------|------------|
+| **single_pass** | `caveated` | `insufficient_evidence` | `['wikipedia']` | `wikipedia:Inverted_yield_curve` | **3** |
+| **refine** | `caveated` | `insufficient_evidence` | `['wikipedia']` | `Inverted_yield_curve`, `Yield_curve` | **5** |
+
+**Tier 1 pattern:** arXiv was called but returned `empty_result` every time; diversity gate fails wikipedia-only. Refine adds second wikipedia hit but still `insufficient_evidence`.
+
+Committed: `outputs/tier2_comparison.md` (with live notes) + 4 live traces. Pushed to `cursor/tier2-comparison-72ca`.
+
+---
