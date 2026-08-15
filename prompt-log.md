@@ -1285,3 +1285,71 @@ OFFLINE_MODE=1 python3 agent.py --offline "discount window" ...
 **Commit:** `8e87b09` — pushed to `cursor/p1-repository-controls-72ca`
 
 ---
+
+## Interaction 11
+
+### User Prompt
+Implement answerability_check(question, question_type) — a check run 
+BEFORE any tool call, separate from sufficiency. Log as an answerability 
+event: method (rules|llm), in_scope, matched_rules, caused_by=null (it's 
+the first real event after run_header).
+
+Implement sufficiency_check(state, question, question_type) per 
+config/DESIGN.md §5a: question_type is the PRIMARY diversity signal 
+(keywords fallback only). Include the data_retrieval rule (requires an 
+ok=True tool_result from the designated data-source tool for that 
+question_type — generic Wikipedia/arXiv relevance does not substitute). 
+Log matched_event_ids AND rejected_event_ids+reasons on every 
+sufficiency event, stating whether the diversity gate or the 
+data_retrieval rule was the deciding factor, counting DISTINCT TOOLS 
+among matched evidence. Set sufficiency.caused_by to the triggering 
+plan event's id.
+
+Implement dedup against prior tool_result events per the normalization 
+rules; a blocked call is logged as a dedup_skip event with caused_by set 
+to the plan event that proposed the blocked call.
+
+### Cursor Response
+Implemented `checks.py` with all three gates and wired them into `agent.py`.
+
+## `answerability_check(question, question_type)`
+
+- Rule-based only (`method="rules"`) for Tier 1
+- Primary: `question_type=out_of_scope` → `in_scope=False`
+- Keyword fallback: `best`, `favorite`, `should i`, `recommend`
+- `speculative=True` when `question_type=speculative`
+- Logs `AnswerabilityEvent` with `method`, `in_scope`, `matched_rules`, `caused_by=null`
+
+## `sufficiency_check(state, question, question_type, plan_event_id)`
+
+Per §5a:
+- **Wikipedia/arXiv relevance** — title/content keyword overlap; failures go to `rejected_event_ids` + `rejected_reasons`
+- **data_retrieval** — only `fred` `ok=True` results can match; Wikipedia/arXiv rejected as non-substitutes; fails when fred not registered (pre-Tier-3)
+- **Diversity gate** — `question_type` primary (`multi_source_synthesis`, `cross_tool_synthesis`); keyword fallback only when `question_type` absent; counts **distinct tools among matched evidence**
+- `reason` explicitly states whether `diversity_gate` or `data_retrieval` was the deciding factor
+- `sufficiency.caused_by` = triggering `plan.event_id`
+
+## Dedup
+
+- `is_duplicate_call(state, tool_name, query)` — normalized `(tool, query)` vs prior `tool_result` events
+- `make_dedup_skip_event(...)` — `caused_by` = plan event that proposed blocked call
+- `_execute_tool_calls` in `agent.py` logs `dedup_skip` before skipping
+
+## Schema update
+
+- `AnswerabilityEvent` gained `method` and `matched_rules` fields
+
+## Tests (`tests/test_checks.py`)
+
+7 pytest cases — all passing:
+- Q7 out-of-scope type + best keyword
+- Q4 diversity gate fails on 2× Wikipedia
+- Diversity passes with Wikipedia + arXiv
+- Q5 data_retrieval rejects Wikipedia-only evidence
+- Dedup blocks normalized duplicate
+
+**Verified Q7 offline:** answerability → `run_complete` refused/out_of_scope, no tool events.
+
+**Commit:** `976a3de` — pushed to `cursor/p1-repository-controls-72ca`
+
+---
