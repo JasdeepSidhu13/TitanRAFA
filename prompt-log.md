@@ -1203,3 +1203,85 @@ You were right — Interactions 5–6 were summarized placeholders, and Interact
 Going forward, every interaction will be appended with the complete prompt and complete user-visible response before the turn completes, per `.cursor/rules/mandatory-prompt-logging.mdc`.
 
 ---
+
+## Interaction 10
+
+### User Prompt
+Implement WikipediaTool and ArxivTool against tools/base.py, loading 
+RetryPolicy from config/tool_policy.yaml including honor_retry_after_
+header (add this field to the arxiv/wikipedia sections if not already 
+present — currently only groq has it). Both return citations as {title, 
+url_or_id}, a stable source_id, and set failure_class (timeout | 
+http_429 | parse_error | empty_result) on any ok=False.
+
+Wikipedia disambiguation handling: if the REST endpoint returns a 
+disambiguation page (not a real article), treat this as a non-match — 
+either reject the result outright (ok=False, failure_class=empty_result) 
+or fall back to the search endpoint and pick the best title-overlap 
+match, logging which path was taken. Do not let a disambiguation page 
+pass through as if it were real article content — this is exactly the 
+wrong-article risk the "no wikipedia PyPI package" rule exists to avoid.
+
+Add small recorded fixture responses for each tool 
+under tests/fixtures/ and wire OFFLINE_MODE to replay them — offline is 
+Tier 1 baseline, not a follow-up. Persist last-call timestamp for arXiv's 
+min_interval across process invocations, OR state clearly in a comment 
+that you're relying on the batch runner (a single long-lived process 
+that will run all reference questions in one process, built later this 
+session) to preserve rate-limit state instead — pick one approach and 
+document the choice.
+
+### Cursor Response
+Implemented both tools, offline fixtures, and arXiv cross-process rate persistence.
+
+## New / updated files
+
+| File | Purpose |
+|---|---|
+| `tools/wikipedia.py` | REST summary + search fallback; disambiguation → search with title-overlap pick |
+| `tools/arxiv.py` | Atom export API via httpx (no arxiv PyPI package) |
+| `tools/policy.py` | Load `RetryPolicy` from YAML per tool |
+| `tools/rate_limit.py` | `.ratelimit_state.json` persistence for arXiv `min_interval_s` |
+| `tools/common.py` | `make_success` / `make_failure`, truncation, title overlap |
+| `tests/fixtures/wikipedia.json` | Recorded offline Wikipedia response |
+| `tests/fixtures/arxiv.json` | Recorded offline arXiv response |
+
+## Policy changes (`config/tool_policy.yaml`)
+
+- Added `honor_retry_after_header: true` to **wikipedia**, **arxiv**, **fred**, and **groq**
+- Documented arXiv cross-process rate choice in arXiv `notes`
+
+## `ToolResult` additions (`tools/base.py`)
+
+- `ToolCitation(title, url_or_id)` on every successful result
+- `honor_retry_after_header` on `RetryPolicy` — only parses `Retry-After` when true
+- `RateLimitStore` integration for cross-process `min_interval_s`
+
+## Wikipedia disambiguation path
+
+1. Try REST `/page/summary/{title}`
+2. If `type == "disambiguation"` or title ends with `(disambiguation)` → **search fallback** (logged in `reason` as `disambiguation_page_rejected`)
+3. If 404 → search fallback (`direct_summary_404`)
+4. Search picks highest title-overlap result; requires ≥1 non-stopword overlap
+5. If search pick is still disambiguation → `ok=False`, `failure_class=empty_result`
+
+## arXiv rate-limit choice
+
+**Implemented file persistence** via `.ratelimit_state.json` (already gitignored). Documented in `tools/rate_limit.py` and `tool_policy.yaml` that the **batch runner** (§6a, built later this session) is the preferred path for reference-question batches; file store is the fallback for standalone `python agent.py` invocations.
+
+## Offline wiring
+
+- Fixtures live in `tests/fixtures/{wikipedia,arxiv}.json`
+- `fixtures/loader.py` reads from `tests/fixtures/`
+- Both tools call `is_offline_mode()` at `invoke()` start and replay fixtures
+- `agent.py` calls `set_offline_mode()` and uses real tool classes in offline path
+
+**Verified:**
+```bash
+OFFLINE_MODE=1 python3 -c "from tools.wikipedia import WikipediaTool; ..."
+OFFLINE_MODE=1 python3 agent.py --offline "discount window" ...
+```
+
+**Commit:** `8e87b09` — pushed to `cursor/p1-repository-controls-72ca`
+
+---
