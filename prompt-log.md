@@ -1792,3 +1792,42 @@ The PR includes the full Tier 1 deliverable:
 After you merge PR #3 to `main`, Tier 2 work (refine-loop comparison / `SINGLE_PASS` A/B) can start on a fresh branch off `main`.
 
 ---
+
+## Interaction 20
+
+### User Prompt
+Before i move forward, do two things: 1) Give me a count of GROQ_API calls and the tool_alls you made for answering the 8 questions. Also give me the account per question 2) Update requirements.txt and ReadMe showing evidence of Tier1 results success.
+
+### Cursor Response
+## 1) Groq API calls & tool calls (live batch `tier1-20260815-verify`)
+
+**Batch totals**
+- **Groq API calls:** 24 successful `GroqClient.complete()` HTTP calls (process counter in `outputs/tier1_results.md`)
+- **Trace-visible LLM events:** 21 (`plan` + `synthesize` events) — the extra 3 calls are JSON output repair retries inside planner/synthesizer (not separate trace events)
+- **Tool executions:** 16 `tool_result` events (wikipedia 8, arxiv 8)
+- **Successful tool results:** arxiv 6 ok, wikipedia 1 ok
+- **Dedup skips:** 9 (repeat queries not re-executed)
+
+### Per question
+
+| Q | Outcome | Groq calls | Tools executed | Notes |
+|---|---------|------------|----------------|-------|
+| Q1 | grounded / completed | 3 | wikipedia×1 ❌, arxiv×1 ✅ | 1 dedup skip |
+| Q2 | grounded / completed | 2 | wikipedia×1 ❌, arxiv×1 ✅ | |
+| Q3 | grounded / completed | 2 | arxiv×1 ✅, wikipedia×1 ❌ | |
+| Q4 | caveated / insufficient_evidence | 4 | wikipedia×1 ❌, arxiv×1 ✅ | diversity gate; 4 dedup skips |
+| Q5 | caveated / insufficient_evidence | 4 | wikipedia×1 ❌, arxiv×1 ✅ | fred not registered; 2 dedup skips |
+| Q6 | caveated / insufficient_evidence | 4 | wikipedia×2 (1✅ 1❌), arxiv×2 ❌ | diversity gate; 2 dedup skips |
+| Q7 | refused / out_of_scope | 0 | none | answerability only |
+| Q8 | caveated / completed | 2 | wikipedia×1 ❌, arxiv×1 ✅ | inference:true claim |
+
+❌ = `ok=false` tool_result · ✅ = `ok=true`
+
+## 2) Updated `requirements.txt` and `README.md`
+
+- **`requirements.txt`:** pinned deps with Tier 1 verification note (`httpx`, `PyYAML`, `pytest`)
+- **`README.md`:** new **Tier 1 — verified ✅** section with outcomes table, Groq/tool totals, test counts, and artifact paths
+
+Committed and pushed to `cursor/tier1-completion-72ca` (PR #3).
+
+---
