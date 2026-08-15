@@ -87,7 +87,7 @@ config: RunConfig            # model id + exact date/version pinned,
 # Terminal fields — set only at run end; written in run_complete event (§5e)
 mode_final: "grounded" | "caveated" | "refused"   # synthesizer path only
 outcome_final: "completed" | "aborted" | "out_of_scope" |
-               "insufficient_evidence"
+               "insufficient_evidence" | "degraded"
 refusal_reason: str | None   # null unless mode_final=refused (§7)
 
 events: list[AgentEvent]
@@ -416,13 +416,20 @@ Without the batch runner, cross-process arXiv bursts violate ToU and
 | Field | Set on | Value set | Meaning |
 |---|---|---|---|
 | `mode_final` | `run_complete` | `grounded` \| `caveated` \| `refused` | What the answer path decided about claim grounding |
-| `outcome_final` | `run_complete` | `completed` \| `aborted` \| `out_of_scope` \| `insufficient_evidence` | Why the run ended |
+| `outcome_final` | `run_complete` | `completed` \| `aborted` \| `out_of_scope` \| `insufficient_evidence` \| `degraded` | Why the run ended |
 | `refusal_reason` | `run_complete` | `str` \| `null` | Human detail when `mode_final=refused`; **null** otherwise |
 
 **Rules:**
 - `mode_final=refused` → answerability failure only (`outcome_final=out_of_scope`).
 - In-scope evidence exhaustion → `mode_final=caveated`,
   `outcome_final=insufficient_evidence`, `refusal_reason=null`.
+- Groq mass-429 / sustained LLM unavailability (see `config/tool_policy.yaml`
+  `groq` section) → `outcome_final=degraded`. Pair with:
+  - `mode_final=caveated` when ≥1 `ok=True` `tool_result` exists before
+    degradation (partial evidence available); or
+  - `mode_final=refused` when degradation occurs before any usable evidence
+    is gathered and the run cannot produce a grounded or caveated answer.
+  `refusal_reason=null` unless `mode_final=refused` for answerability.
 - Never encode `out_of_scope` vs `insufficient_evidence` inside
   `mode_final` or a combined `"refused: X"` string.
 

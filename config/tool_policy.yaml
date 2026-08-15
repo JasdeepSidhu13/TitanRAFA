@@ -41,15 +41,21 @@ groq:
   max_retries: 2
   backoff_base_s: 1.0
   max_output_repair_attempts: 1
+  mass_429_threshold: 3
   notes: >
     Applies to both planner and synthesizer calls. On 429/transient 5xx,
-    retry per above. On schema-invalid output (planner tool_calls JSON,
-    synthesizer claims/citations JSON), issue ONE repair re-prompt with
-    the validation error included; on second failure, fall back to a
-    safe default (planner: empty tool_calls, treated as insufficient
-    evidence; synthesizer: should not be reached if refusal short-circuit
-    in DESIGN.md §5d is implemented correctly). Missing/invalid
-    GROQ_API_KEY must fail fast at startup, not mid-run.
+    retry per above, honoring Retry-After when present. On schema-invalid
+    output (planner tool_calls JSON, synthesizer claims/citations JSON),
+    issue ONE repair re-prompt with the validation error included; on
+    second failure, fall back to a safe default (planner: empty
+    tool_calls, treated as insufficient evidence; synthesizer: should not
+    be reached if refusal short-circuit in DESIGN.md §5d is implemented
+    correctly). Missing/invalid GROQ_API_KEY must fail fast at startup,
+    not mid-run — unless OFFLINE_MODE=1 or --offline is set. Mass-429
+    handling: when consecutive Groq 429 responses reach mass_429_threshold
+    within a single run, stop retrying LLM calls and terminate with
+    outcome_final=degraded per DESIGN.md §7 (mode_final=caveated if
+    partial evidence exists, mode_final=refused if no usable evidence).
 
 loop_bounds:
   max_refine_rounds: 2
