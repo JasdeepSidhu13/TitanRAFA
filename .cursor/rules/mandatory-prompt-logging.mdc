@@ -1,0 +1,70 @@
+---
+description: Enforce chronological append-only logging of every Cursor interaction to prompt-log.md.
+alwaysApply: true
+---
+
+# Mandatory Interaction Logging
+
+## Purpose
+
+Every Cursor interaction in this repository must be recorded in `prompt-log.md` at the repository root. This rule defines the required workflow; it is a behavioral instruction for the agent, not a technical guarantee that the Cursor platform captures every interaction automatically.
+
+Cursor Project Rules guide agent behavior during a session. They do not replace platform-level logging, audit trails, or version control. Do not claim stronger enforcement than the platform provides.
+
+## Required Workflow
+
+For every interaction, follow this sequence without exception:
+
+```
+receive prompt
+→ perform requested work
+→ append complete prompt and complete user-visible response to prompt-log.md
+→ verify the entry exists
+→ complete the interaction
+```
+
+## Logging Rules
+
+Append chronologically to `prompt-log.md`. Never overwrite, delete, reorder, summarize, truncate, or reconstruct prior entries.
+
+Use sequential interaction numbers beginning with `1`. Each new interaction increments the number by one.
+
+### Entry Format
+
+```markdown
+## Interaction N
+
+### User Prompt
+<complete prompt>
+
+### Cursor Response
+<complete user-visible response>
+
+---
+```
+
+### What to Record
+
+- **User Prompt**: the complete prompt exactly as received, without omission or paraphrase.
+- **Cursor Response**: the complete user-visible response produced for that interaction, without omission, summarization, or truncation.
+
+### What Not to Do
+
+- Do not skip logging for "small" or "trivial" interactions.
+- Do not log only a summary of the prompt or response.
+- Do not edit or remove previous entries.
+- Do not defer logging to a later interaction.
+
+## Verification Step
+
+Before completing any interaction, verify that `prompt-log.md` contains:
+
+- the correct `## Interaction N` heading for the current interaction;
+- `### User Prompt` with the complete prompt;
+- `### Cursor Response` with the complete user-visible response.
+
+If the entry is missing or incomplete, append or correct it before finishing the interaction.
+
+## Relationship to Other Rules
+
+Logging must occur after the requested work is performed and before the interaction is considered complete. Other repository rules (including pedagogical documentation) do not exempt an interaction from logging.
