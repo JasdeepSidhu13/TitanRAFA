@@ -652,3 +652,29 @@ All 14 review items applied. Summary by file:
 **Branch:** `cursor/p1-repository-controls-72ca` (pushed)
 
 ---
+
+## Interaction 5
+
+### User Prompt
+Yes — add the data_retrieval sufficiency rule to DESIGN.md §5a now, 
+before scaffolding. Use this as the rule:
+
+"data_retrieval: sufficiency requires an ok=True tool_result from a tool 
+specifically designated as the data source for this question_type 
+(currently: fred). Generic relevance matches from Wikipedia or arXiv are 
+insufficient on their own — they may supply background/context claims 
+(logged as inference:true in synthesis) but cannot satisfy a 
+current-data-point question by substitution. If no data-source tool is 
+registered (e.g. pre-Tier-3, FRED not yet wired), sufficiency cannot 
+pass; bounds exhaust per §5b and the run proceeds to mode=caveated, 
+outcome_final=insufficient_evidence, per §7 — this is the Q5 pre-FRED 
+path, not a bug."
+
+Add it as a fourth bullet alongside the Wikipedia/arXiv/diversity-gate 
+rules already in §5a. Show me the updated section before committing, 
+then commit with message "Add data_retrieval sufficiency rule" and push.
+
+### Cursor Response
+Updated §5a shown for review, then committed as 218aeab.
+
+---
