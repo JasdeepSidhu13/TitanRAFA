@@ -1,3 +1,4 @@
-httpx==0.27.0
-PyYAML==6.0.1
-pytest==8.3.2
+# Tier 1 verified with Python 3.12+ (live batch tier1-20260815-verify)
+httpx==0.27.0          # Groq API + Wikipedia/arXiv HTTP
+PyYAML==6.0.1          # config/tool_policy.yaml
+pytest==8.3.2           # test suite (45 tests)

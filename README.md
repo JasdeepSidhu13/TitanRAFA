@@ -2,6 +2,27 @@
 
 Banking research agent with inspectable JSONL traces, rule-based answerability/sufficiency gates, and Groq-powered planner/synthesizer.
 
+## Tier 1 — verified ✅
+
+Live batch run **`tier1-20260815-verify`** (see `outputs/tier1_results.md`):
+
+| Q | Type | mode_final | outcome_final | Groq calls | Tool calls executed |
+|---|------|------------|---------------|------------|---------------------|
+| Q1 | single_source_factual | grounded | completed | 3 | wikipedia×1 (fail), arxiv×1 (ok) |
+| Q2 | single_source_factual | grounded | completed | 2 | wikipedia×1 (fail), arxiv×1 (ok) |
+| Q3 | academic_search | grounded | completed | 2 | arxiv×1 (ok), wikipedia×1 (fail) |
+| Q4 | multi_source_synthesis | caveated | insufficient_evidence | 4 | wikipedia×1 (fail), arxiv×1 (ok) — diversity gate fired |
+| Q5 | data_retrieval | caveated | insufficient_evidence | 4 | wikipedia×1 (fail), arxiv×1 (ok) — fred not registered |
+| Q6 | cross_tool_synthesis | caveated | insufficient_evidence | 4 | wikipedia×2, arxiv×2 — diversity gate fired |
+| Q7 | out_of_scope | refused | out_of_scope | 0 | none (answerability only) |
+| Q8 | speculative | caveated | completed | 2 | wikipedia×1 (fail), arxiv×1 (ok) — inference:true claim |
+
+**Batch totals:** 24 Groq `complete()` HTTP calls · 16 tool executions (wikipedia 8, arxiv 8; 7 ok) · 9 dedup skips
+
+**Tests:** `bash scripts/run_tier1.sh` (29) + `pytest tests/` (45) — all passing
+
+**Artifacts:** `outputs/tier1_results.md` + 8 live traces under `traces/` (experiment id in each `run_header`)
+
 ## Prerequisites
 
 - Python 3.12+
