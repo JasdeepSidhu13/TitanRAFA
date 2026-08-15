@@ -118,8 +118,10 @@ class AnswerabilityEvent:
     refine_round: int = 0
     caused_by: Optional[int] = None
     timing: Optional[Timing] = None
+    method: Literal["rules", "llm"] = "rules"
     in_scope: bool = True
     speculative: bool = False
+    matched_rules: list[str] = field(default_factory=list)
     reason: str = ""
 
 
