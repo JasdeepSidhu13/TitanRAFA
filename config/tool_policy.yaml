@@ -56,8 +56,10 @@ loop_bounds:
   max_planner_cycles: 3
   max_tool_calls_per_run: 6
   run_timeout_s: 90
-  circuit_breaker_consecutive_failures: 3
+  circuit_breaker_consecutive_failures: 2
+  per_tool_cumulative_time_cap_s: 45
   notes: >
     Tier-1 baseline (not deferred to Tier 3). At any cap, proceed to
-    synthesis with mode=caveated or mode=refused based on evidence
-    collected so far — never hang or loop silently past a bound.
+    synthesis with mode_final=caveated for insufficient evidence per
+    DESIGN.md §7 — never mode_final=refused unless answerability failed
+    (§5d). Never hang or loop silently past a bound.

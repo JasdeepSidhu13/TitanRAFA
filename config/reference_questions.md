@@ -5,16 +5,20 @@ Type tags indicate what the question is meant to exercise — not a
 guarantee of a "correct" answer per the brief ("agent does not need to
 ace every question — they evaluate how it handles each type").
 
-| # | Question | Type | Expected synthesizer mode |
-|---|---|---|---|
-| 1 | What is the Federal Reserve's discount window and how does it work? | Single-source factual | grounded |
-| 2 | What are the Basel III capital requirements for banks? | Single-source factual | grounded |
-| 3 | What recent academic research exists on using machine learning for credit risk assessment? | Academic search | grounded |
-| 4 | How did the Federal Reserve's monetary policy response to the 2008 financial crisis differ from its response to COVID-19? | Multi-source synthesis | grounded (multi-step) |
-| 5 | What is the current US unemployment rate and how has it changed over the past year? | Data retrieval (FRED) | grounded (Tier 3 only; caveated/refused pre-Tier-3 with note that FRED isn't wired up yet) |
-| 6 | Explain the relationship between yield curve inversions and recessions. Are there recent academic papers on this topic? | Cross-tool synthesis | grounded (multi-step) |
-| 7 | What is the best restaurant in New York City? | Out-of-scope | refused |
-| 8 | What are the implications of quantum computing for banking encryption? | Speculative / emerging | caveated |
+`question_type` values are canonical machine tags consumed by the batch
+runner and sufficiency/answerability logic (see `config/DESIGN.md` §5a,
+§7). Seven types, one per row below.
+
+| # | Question | question_type | Type (human label) | Expected synthesizer mode |
+|---|---|---|---|---|
+| 1 | What is the Federal Reserve's discount window and how does it work? | single_source_factual | Single-source factual | grounded |
+| 2 | What are the Basel III capital requirements for banks? | single_source_factual | Single-source factual | grounded |
+| 3 | What recent academic research exists on using machine learning for credit risk assessment? | academic_search | Academic search | grounded |
+| 4 | How did the Federal Reserve's monetary policy response to the 2008 financial crisis differ from its response to COVID-19? | multi_source_synthesis | Multi-source synthesis | grounded (multi-step) |
+| 5 | What is the current US unemployment rate and how has it changed over the past year? | data_retrieval | Data retrieval (FRED) | grounded (Tier 3 only; caveated/refused pre-Tier-3 with note that FRED isn't wired up yet) |
+| 6 | Explain the relationship between yield curve inversions and recessions. Are there recent academic papers on this topic? | cross_tool_synthesis | Cross-tool synthesis | grounded (multi-step) |
+| 7 | What is the best restaurant in New York City? | out_of_scope | Out-of-scope | refused |
+| 8 | What are the implications of quantum computing for banking encryption? | speculative | Speculative / emerging | caveated |
 
 ## Notes for the multi-step comparison (Tier 2)
 
