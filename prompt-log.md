@@ -2140,3 +2140,63 @@ Live rerun completed (`tier2-live-20260815-rerun`, ~47s, 12 Groq calls total). R
 Committed: `outputs/tier2_comparison.md` (with live notes) + 4 live traces. Pushed to `cursor/tier2-comparison-72ca`.
 
 ---
+
+## Interaction 28
+
+### User Prompt
+Two fixes, tightly time-boxed, execute in order without waiting for my 
+confirmation between steps. We're on the Tier 2 branch now (Tier 1's 
+branch is already merged to main) — apply both fixes here.
+
+FIX 1 — arXiv query for Q6 (2 min cap):
+Show me the exact query sent to ArxivTool for Q6. If generic/broad, 
+rewrite it to targeted econ-paper phrasing (e.g. "yield curve inversion 
+recession"). Re-run Q6 live, refine variant, ONCE. If still 
+empty_result, revert and move on — do not iterate further.
+
+FIX 2 — planner over-calling both tools on single-source questions 
+(4 min cap):
+Show me the current planner prompt/logic for tool selection. Add an 
+explicit instruction: for question_type=single_source_factual, propose 
+ONLY the single most relevant tool, not both by default — the diversity 
+gate only requires multiple tools for multi_source_synthesis/cross_tool_
+synthesis/data_retrieval question_types, everything else should route to 
+one tool when one is clearly sufficient.
+
+VERIFY — narrow, not a full batch (3 min cap):
+Do NOT re-run all 8 Tier 1 questions live — arXiv's rate limit alone 
+makes a full batch too slow for remaining time. Instead, re-run ONLY Q1 
+(single_source_factual) and Q6 (just fixed) live, individually. Show me 
+tools_used and Groq call count for both. This is a spot-check, not a 
+full re-verification — say so explicitly in the results.
+
+CLOSE OUT — unconditional, runs regardless of how the above went 
+(remaining time):
+1. Update outputs/tier2_comparison.md and outputs/tier1_results.md with 
+whatever the spot-check showed.
+2. README Performance & Limitations: document actual outcome of both 
+fixes (fixed, partially fixed, or not fixed) honestly, plus "full Tier 1 
+batch re-verification after this fix was not completed due to time — 
+spot-checked on Q1/Q6 only" if that's the case.
+3. README "what I'd do with more time": anything still open.
+4. Merge this branch (cursor/tier2-comparison-72ca) into main, keeping 
+the most recent version of each file on any conflict. Tier 1's branch is 
+already merged — do not touch that.
+5. Confirm main is clean (git status, git log --oneline -5), confirm 
+repo is public.
+
+Report everything in one final summary at the end — do not stop for my 
+input mid-sequence, time does not allow it.
+
+### Cursor Response
+Both fixes applied and spot-checked; branch merged to main.
+
+**FIX 1 — Q6 arXiv query:** Pre-fix query was `(yield curve inversion) AND (recession) AND (2020:2024)` → `empty_result`. Added `prepare_arxiv_search_query()` in `tools/arxiv.py`. Post-fix Q6 refine: `completed`, `tools_used=['arxiv','wikipedia']`, 2 Groq calls.
+
+**FIX 2 — planner:** Updated `planner.py` system prompt for single-tool routing on `single_source_factual`. Post-fix Q1: wikipedia only, `completed`, 2 Groq calls.
+
+**Spot-check (not full re-verification):** Q1 → `['wikipedia']`, 2 Groq; Q6 → `['arxiv','wikipedia']`, 2 Groq.
+
+Merged `cursor/tier2-comparison-72ca` → `main`.
+
+---
