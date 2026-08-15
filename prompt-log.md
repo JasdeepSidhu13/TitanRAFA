@@ -2019,3 +2019,42 @@ PR #3 (`cursor/tier1-completion-72ca`) points at the same commit history; **use 
 Verified before opening: `bash scripts/run_tier1.sh` (29 passed) + `pytest tests/` (45 passed).
 
 ---
+
+## Interaction 25
+
+### User Prompt
+Ok , now on to Tier2. Add a SINGLE_PASS env flag (and --single-pass CLI flag) that disables
+refine. Add tier2.py: a runner that executes Q4 and Q6 twice each —
+refine disabled (variant: single_pass) and refine enabled (variant:
+refine) — writing both outputs to outputs/tier2_comparison.md, including 
+for each variant: mode_final, outcome_final, evidence_fingerprint 
+(source_ids + tools_used), trace file path, event sequence, and total 
+GroqClient.complete() call count. Both runs of a question share 
+question_ref/experiment_id and differ only by variant, so comparison 
+tooling can auto-pair them. Traces land in traces/, committed. Read 
+questions from config/reference_questions.md.
+
+### Cursor Response
+Implemented Tier 2 on branch `cursor/tier2-comparison-72ca`.
+
+## SINGLE_PASS / `--single-pass`
+- `run_question(..., single_pass=True|False|None)` — when `None`, reads `SINGLE_PASS` env (`1`/`true`/`yes`)
+- Sets `refine_disabled` and `variant=single_pass` on the run header when enabled
+- CLI: `python3 agent.py "..." --single-pass --question-ref Q4 --question-type multi_source_synthesis`
+
+## `tier2.py`
+- Runs **Q4** and **Q6** from `config/reference_questions.md`
+- Each question twice: `single_pass` then `refine`, shared `experiment_id`
+- Writes `outputs/tier2_comparison.md` with per-variant: `mode_final`, `outcome_final`, `evidence_fingerprint`, trace path, event sequence (`0:run_header → …`), Groq call count
+- Trace headers validated for pairing (`question_ref`, `experiment_id`, `variant`, `refine_disabled`)
+
+```bash
+python3 tier2.py              # live
+OFFLINE_MODE=1 python3 tier2.py --offline
+```
+
+## Tests & artifacts
+- `tests/test_tier2.py` — 6 cases (51 total pytest passing)
+- Committed offline batch `tier2-offline-committed`: `outputs/tier2_comparison.md` + 4 trace JSONL files
+
+---
