@@ -2200,3 +2200,23 @@ Both fixes applied and spot-checked; branch merged to main.
 Merged `cursor/tier2-comparison-72ca` → `main`.
 
 ---
+
+## Interaction 29
+
+### User Prompt
+See the Deliverables here"Deliverables
+Push your code to a public GitHub repository
+Your solution must be written in Python
+Single-command agent run (e.g., python agent.py "your question")
+Include a README.md with:
+Architecture overview and key design decisions
+Setup and run instructions (including Python version and dependency install)
+Agent performance summary and honest assessment of limitations
+What you would do differently with more time
+Include your prompt-log.md capturing all AI tool interactions (required)
+Your agent should be runnable and testable without paid API keys" Update ReadMe. Inlcude architecture overview and key design decision (from my DESGN.MD). Set up and run instructions. Show evidence of Tier1 and Tier2 results. In the What I'd do with more time -- add 1) more comprehensive routing check and verification to gauge agent's decision making in routing tools  2) implement Tier3 Option2 . I implemented parts of it to counter rate-limits etc, and even included them in my policy but would like to go deeper and build degradation, exponential back offs etc. 3) FRED API tool to answer quesitons like no. 5 4) Evals with additional question (Option A) track in tier 3. update prompt-log.md. I have only 5 min.
+
+### Cursor Response
+Updated README.md with full deliverables alignment: architecture overview and eight key design decisions from config/DESIGN.md, setup/run instructions (Python 3.12+, offline mode), Tier 1 and Tier 2 performance tables with links to outputs/, honest limitations, and "What I'd do with more time" (routing verification, Tier 3 Option 2 resilience, FRED tool, evals Option A). Committed to main.
+
+---

@@ -1,135 +1,186 @@
 # TitanRAFA
 
-Banking research agent with inspectable JSONL traces, rule-based answerability/sufficiency gates, and Groq-powered planner/synthesizer.
+Banking research agent: natural-language question → tool routing → cited answer with inspectable JSONL traces. **Python 3.12+**. Single-command run: `python3 agent.py "your question"`.
 
-## Tier 1 — verified ✅
+**Repository:** https://github.com/JasdeepSidhu13/TitanRAFA (public)  
+**AI interaction log:** [`prompt-log.md`](prompt-log.md) (required, append-only)
 
-Live batch run **`tier1-20260815-verify`** (see `outputs/tier1_results.md`):
+---
 
-| Q | Type | mode_final | outcome_final | Groq calls | Tool calls executed |
-|---|------|------------|---------------|------------|---------------------|
-| Q1 | single_source_factual | grounded | completed | 3 | wikipedia×1 (fail), arxiv×1 (ok) |
-| Q2 | single_source_factual | grounded | completed | 2 | wikipedia×1 (fail), arxiv×1 (ok) |
-| Q3 | academic_search | grounded | completed | 2 | arxiv×1 (ok), wikipedia×1 (fail) |
-| Q4 | multi_source_synthesis | caveated | insufficient_evidence | 4 | wikipedia×1 (fail), arxiv×1 (ok) — diversity gate fired |
-| Q5 | data_retrieval | caveated | insufficient_evidence | 4 | wikipedia×1 (fail), arxiv×1 (ok) — fred not registered |
-| Q6 | cross_tool_synthesis | caveated | insufficient_evidence | 4 | wikipedia×2, arxiv×2 — diversity gate fired |
-| Q7 | out_of_scope | refused | out_of_scope | 0 | none (answerability only) |
-| Q8 | speculative | caveated | completed | 2 | wikipedia×1 (fail), arxiv×1 (ok) — inference:true claim |
+## Deliverables checklist
 
-Tool column legend: `wikipedia×1` = one Wikipedia call attempted; `(ok)` = `tool_result.ok=true`; `(fail)` = `tool_result.ok=false` (live batch: most Wikipedia calls returned HTTP 403).
+| Requirement | Location |
+|-------------|----------|
+| Public GitHub repo | https://github.com/JasdeepSidhu13/TitanRAFA |
+| Python solution | `agent.py`, `tools/`, `planner.py`, `synthesizer.py` |
+| Single-command run | `python3 agent.py "your question"` |
+| README (architecture, setup, performance, limitations) | this file |
+| `prompt-log.md` (all AI interactions) | [`prompt-log.md`](prompt-log.md) |
+| Runnable without paid API keys | `OFFLINE_MODE=1` + fixture replay (see below) |
 
-**Batch totals:** 24 Groq `complete()` HTTP calls · 16 tool executions (wikipedia 8, arxiv 8; 7 ok) · 9 dedup skips
+---
 
-**Tests:** `bash scripts/run_tier1.sh` (29) + `pytest tests/` (45) — all passing
+## Architecture overview
 
-**Artifacts:** `outputs/tier1_results.md` + 8 live traces under `traces/` (experiment id in each `run_header`)
+From [`config/DESIGN.md`](config/DESIGN.md) — source of truth for design.
 
-## Prerequisites
+```
+question → answerability (rules) → planner (Groq LLM)
+        → executor (Wikipedia / arXiv tools) → sufficiency (rules)
+        → refine loop (≤2 rounds) → synthesizer (Groq LLM) → answer + citations
+```
 
-- Python 3.12+
-- `GROQ_API_KEY` (required for live runs)
-- Optional: `FRED_API_KEY` (Tier 3 — not wired in Tier 1)
+| Layer | Role |
+|-------|------|
+| **Orchestrator** | `agent.py` — plain Python control flow, not an LLM |
+| **LLM (Groq)** | Planning and synthesis only; never executes tools or manages state |
+| **Tools** | `WikipediaTool`, `ArxivTool` (Tier 1–2); `FREDTool` planned (Tier 3) |
+| **Memory** | `AgentState` — append-only event log per run (`traces/{run_id}.jsonl`) |
 
-## Setup
+Each run writes a JSONL trace: `run_header` → plan / tool_result / sufficiency / synthesize events → `run_complete` with `mode_final`, `outcome_final`, and `evidence_fingerprint`.
+
+---
+
+## Key design decisions
+
+1. **ReAct-lite over explicit `AgentState`, not free-text ReAct parsing** — events are structured (`plan`, `tool_result`, `sufficiency`, `synthesize`); tracing, dedup, and sufficiency are first-class, not retrofitted onto strings.
+
+2. **Groq free tier over local models** — deterministic for reviewers on unknown hardware; requires a free `GROQ_API_KEY` (no payment). Documented in `.env.example`.
+
+3. **Deterministic sufficiency gate (not LLM)** — relevance by tool-specific rules; **source diversity gate** requires ≥2 distinct tools for `multi_source_synthesis` / `cross_tool_synthesis`; `data_retrieval` requires a registered data tool (FRED, not yet wired).
+
+4. **Stable citations** — every successful retrieval gets a `source_id` (e.g. `wikipedia:Discount_window`, `arxiv:2007.15419v1`); synthesizer claims reference `source_id`, not free text.
+
+5. **Dedup before every tool call** — `(tool_name, normalized_query)` checked against prior events; blocks logged as `dedup_skip`, not silently dropped.
+
+6. **Per-tool `RetryPolicy`** — rate limits, timeouts, exponential backoff, and `Retry-After` handling in `config/tool_policy.yaml` (foundations for Tier 3 degradation; not fully exercised end-to-end yet).
+
+7. **Tier 2 A/B via trace metadata** — `variant` (`single_pass` \| `refine`), `experiment_id`, `refine_disabled` on `run_header` for auto-pairing without manual reconciliation.
+
+8. **Offline mode** — `OFFLINE_MODE=1` replays fixtures so CI and reviewers can run without API keys.
+
+---
+
+## Setup and run instructions
+
+### Prerequisites
+
+- **Python 3.12+**
+- **Live runs:** free `GROQ_API_KEY` from [console.groq.com](https://console.groq.com)
+- **Optional (Tier 3):** `FRED_API_KEY` — not wired yet
+
+### Install
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/JasdeepSidhu13/TitanRAFA.git
 cd TitanRAFA
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env and set GROQ_API_KEY=...
+# Edit .env: GROQ_API_KEY=gsk_...
 ```
 
-## Single question (CLI)
+### Single question (required entry point)
 
 ```bash
-source .env  # or export GROQ_API_KEY=...
+source .env
 python3 agent.py "What is the Federal Reserve discount window?" \
   --question-ref Q1 --question-type single_source_factual
 ```
 
-Stdout includes **Answer**, **Citations**, **mode_final**, **outcome_final**, and **Trace** path.
+Stdout: **Answer**, **Citations**, `mode_final`, `outcome_final`, **Trace** path.
 
-### Offline mode (no API key)
+### Without paid API keys (offline / CI)
 
 ```bash
 OFFLINE_MODE=1 python3 agent.py --offline "What is GDP?" \
   --question-type single_source_factual
 ```
 
-## Batch runner (all 8 reference questions)
-
-Single long-lived process — preserves arXiv rate-limit state across questions.
+### Batch runners
 
 ```bash
-source .env
-python3 -m scripts.run_reference
-```
+# Tier 1 — all 8 reference questions → outputs/tier1_results.md
+source .env && python3 -m scripts.run_reference
 
-Writes `outputs/tier1_results.md` with per-question results and trace paths.  
-Offline: `OFFLINE_MODE=1 python3 -m scripts.run_reference --offline`
+# Tier 2 — Q4 & Q6 × single_pass vs refine → outputs/tier2_comparison.md
+source .env && python3 tier2.py
 
-## Tier 2 comparison (Q4 & Q6)
-
-Paired runs: `single_pass` (refine disabled) vs `refine` (refine enabled).
-
-```bash
-source .env
-python3 tier2.py
-# or: SINGLE_PASS=1 python3 agent.py "..." --single-pass --question-ref Q4 ...
-```
-
-Writes `outputs/tier2_comparison.md` with mode/outcome, evidence_fingerprint, trace path, event sequence, and per-run Groq call counts. Offline: `OFFLINE_MODE=1 python3 tier2.py --offline`
-
-## Tier 1 smoke tests
-
-```bash
+# Smoke tests (no API key)
 bash scripts/run_tier1.sh
-python3 -m pytest tests/ -v
+python3 -m pytest tests/ -v   # 51 tests
 ```
 
-## Configuration
+---
 
-| File | Purpose |
-|---|---|
-| `config/DESIGN.md` | Architecture source of truth |
-| `config/tool_policy.yaml` | Retry, rate limits, loop bounds |
-| `config/reference_questions.md` | Q1–Q8 with canonical `question_type` tags |
+## Agent performance summary
 
-## Traces
+### Tier 1 — live batch (`tier1-20260815-ua-fix`)
 
-Each run writes `traces/{run_id}.jsonl`:
-- First line: `run_header`
-- Last line: `run_complete` (mode_final, outcome_final, refusal_reason, evidence_fingerprint)
+Full table: [`outputs/tier1_results.md`](outputs/tier1_results.md) · 8 traces under `traces/`
 
-## Development
+| Q | question_type | mode_final | outcome_final | tools_used |
+|---|---------------|------------|---------------|------------|
+| Q1 | single_source_factual | grounded | completed | wikipedia |
+| Q2 | single_source_factual | grounded | completed | arxiv, wikipedia |
+| Q3 | academic_search | grounded | completed | arxiv, wikipedia |
+| Q4 | multi_source_synthesis | caveated | **completed** | arxiv, wikipedia |
+| Q5 | data_retrieval | caveated | insufficient_evidence | arxiv, wikipedia (no FRED) |
+| Q6 | cross_tool_synthesis | caveated | insufficient_evidence | wikipedia only (pre-fix arXiv) |
+| Q7 | out_of_scope | refused | out_of_scope | none |
+| Q8 | speculative | caveated | completed | arxiv |
 
-- `SINGLE_PASS=1` disables refine rounds (Tier 2 A/B)
-- Trace schema: `agentstate.py`
-- Prompt interaction log: `prompt-log.md` (append-only)
+**Post-fix spot-check (Q1 only, not full re-verification):** planner routed **wikipedia only** → `completed`, 2 Groq calls (`traces/0396332b-…`).
 
-## Performance & Limitations
+### Tier 2 — live paired runs (`tier2-live-20260815-rerun`)
 
-| Fix | Status | Evidence |
-|-----|--------|----------|
-| **Q6 arXiv `empty_result`** | **Fixed** | Prior query `(yield curve inversion) AND (recession) AND (2020:2024)` returned no entries; `prepare_arxiv_search_query()` strips Boolean/date syntax before the API call. Post-fix Q6 refine spot-check: `completed`, `tools_used=['arxiv','wikipedia']`, 2 Groq calls. |
-| **Planner over-calling both tools on `single_source_factual`** | **Fixed** | Planner prompt now instructs single-tool routing for `single_source_factual`. Post-fix Q1 spot-check: planner proposed **wikipedia only**, `completed`, 2 Groq calls. |
+Full report: [`outputs/tier2_comparison.md`](outputs/tier2_comparison.md)
 
-Full Tier 1 batch re-verification after these fixes was **not** completed due to time — spot-checked on **Q1** and **Q6** only.
+| Q | variant | mode_final | outcome_final | tools_used | Groq |
+|---|---------|------------|---------------|------------|------|
+| **Q4** | single_pass | caveated | **completed** | arxiv, wikipedia | 2 |
+| **Q4** | refine | caveated | **completed** | arxiv, wikipedia | 2 |
+| Q6 | single_pass | caveated | insufficient_evidence | wikipedia | 3 |
+| Q6 | refine | caveated | insufficient_evidence | wikipedia | 5 |
 
-Known remaining limits:
-- arXiv rate limiting makes full live batches slow; use `OFFLINE_MODE=1` for CI.
-- FRED (`data_retrieval` / Q5) is not wired in Tier 1–2.
-- Planner behavior is LLM-dependent; prompt fixes reduce but do not eliminate mis-routing.
-- Tier 2 comparison file still shows pre-fix Q6 paired runs; only post-fix Q6 refine spot-check is recorded above.
+**Q4 proof point:** both variants pass the diversity gate on round 0 with multi-tool evidence; refine adds no extra plan cycles.
+
+**Post-fix Q6 spot-check (refine, once):** `grounded` / **completed** / `arxiv + wikipedia` / 2 Groq (`traces/55b889f3-…`) after `prepare_arxiv_search_query()` fix.
+
+---
+
+## Honest limitations
+
+- **LLM planner is non-deterministic** — prompt rules reduce mis-routing (e.g. single-tool for `single_source_factual`) but do not hard-enforce it in code.
+- **arXiv rate limits** — full live batches are slow; cross-process rate state exists (`tools/rate_limit.py`) but Tier 3-style degradation paths are incomplete.
+- **FRED not implemented** — Q5 (`data_retrieval`) cannot pass sufficiency until `FREDTool` is registered.
+- **Post-fix verification was spot-check only** — Q1 and Q6 re-run individually; full Tier 1/Tier 2 batch re-verification not completed due to time.
+- **Tier 2 file mixes pre- and post-fix Q6 rows** — see spot-check section at top of `outputs/tier2_comparison.md`.
+
+---
 
 ## What I'd do with more time
 
-1. Re-run full Tier 1 batch and Tier 2 paired comparison live post-fix.
-2. Wire FRED for Q5 (`data_retrieval`) and extend diversity gate for data + narrative sources.
-3. Add deterministic post-planner validation: cap `single_source_factual` / `academic_search` to one tool when the plan proposes two.
-4. Harden arXiv query shaping in the planner repair loop (reject Boolean syntax before tool invoke).
-5. Merge Tier 1 Wikipedia User-Agent fix narrative into main README verification table (post-merge cleanup).
+1. **More comprehensive routing check and verification** — systematic eval of planner tool-choice across all `question_type` tags (not just spot-checks), with trace-level assertions on `tool_calls_proposed` vs expected routing matrix.
+
+2. **Tier 3 Option 2 — deeper resilience** — build on existing `RetryPolicy` / rate-limit store in `config/tool_policy.yaml`: graceful degradation (`outcome_final=degraded`), exponential backoff tuning, `Retry-After` propagation, run-timeout budgeting, and Groq retry exhaustion handling end-to-end.
+
+3. **FRED API tool** — implement `FREDTool` so Q5 and other `data_retrieval` questions return live macro series instead of `insufficient_evidence`.
+
+4. **Evals with additional questions (Option A, tracked in Tier 3)** — expand `config/reference_questions.md` with held-out eval set; batch runner + comparison tooling to track regression on routing, sufficiency, and citation quality over time.
+
+---
+
+## Configuration reference
+
+| File | Purpose |
+|------|---------|
+| [`config/DESIGN.md`](config/DESIGN.md) | Architecture source of truth |
+| [`config/reference_questions.md`](config/reference_questions.md) | Q1–Q8 + `question_type` tags |
+| [`config/tool_policy.yaml`](config/tool_policy.yaml) | Retry, rate limits, loop bounds |
+| [`prompt-log.md`](prompt-log.md) | Complete AI tool interaction log |
+
+## Traces
+
+Each run: `traces/{run_id}.jsonl` — first line `run_header`, last line `run_complete` with `evidence_fingerprint.tools_used` and `source_ids`.
