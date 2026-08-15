@@ -1,10 +1,15 @@
 # Tier 2 Comparison (Q4 & Q6: single_pass vs refine)
 
-Generated: 2026-08-15T16:23:40.311729+00:00
-Experiment ID: `tier2-offline-committed`
-Offline mode: `True`
+Generated: 2026-08-15T16:27:50.573694+00:00
+Experiment ID: `tier2-live-20260815`
+Offline mode: `False`
 
 Paired runs share `question_ref` and `experiment_id`; they differ only by `variant`.
+
+## Live run notes (`tier2-live-20260815`)
+
+- **Q4 — clean proof point:** Both variants reached `completed` with **arxiv + wikipedia** in `tools_used`. Sufficiency passed on round 0 for both; refine did not change outcome (no extra plan cycles). Confirms multi-tool diversity gate can pass live when both tools return evidence.
+- **Q6 — same Tier 1 pattern (not debugged):** arXiv **was called** on every plan cycle but returned `empty_result` (`arxiv search returned no entries`). Diversity gate fails with wikipedia-only matched evidence → `insufficient_evidence`. Refine adds a second wikipedia source (`Yield_curve`) but cannot satisfy cross-tool diversity without ok arXiv evidence.
 
 ## Q4 — `multi_source_synthesis`
 
@@ -13,32 +18,32 @@ Paired runs share `question_ref` and `experiment_id`; they differ only by `varia
 ### variant: `single_pass`
 
 **mode_final:** `caveated`  
-**outcome_final:** `insufficient_evidence`
+**outcome_final:** `completed`
 
 **evidence_fingerprint:**
-- source_ids: `['wikipedia:Discount_window']`
-- tools_used: `['wikipedia']`
+- source_ids: `['arxiv:2007.15419v1', 'wikipedia:Federal_Reserve']`
+- tools_used: `['arxiv', 'wikipedia']`
 
-**Trace:** `traces/70f08dd9-ce26-4ca9-ae41-47d76ca6a2c3.jsonl`
+**Trace:** `traces/0d178930-3a1a-47a1-a410-ade7b00f3afe.jsonl`
 
 **Event sequence:** `0:run_header → 1:answerability → 2:plan → 3:tool_result → 4:tool_result → 5:sufficiency → 6:synthesize → 7:run_complete`
 
-**Groq complete() calls:** `0`
+**Groq complete() calls:** `2`
 
 ### variant: `refine`
 
 **mode_final:** `caveated`  
-**outcome_final:** `insufficient_evidence`
+**outcome_final:** `completed`
 
 **evidence_fingerprint:**
-- source_ids: `['arxiv:2301.00001', 'wikipedia:Discount_window']`
+- source_ids: `['arxiv:2007.15419v1', 'wikipedia:Federal_Reserve']`
 - tools_used: `['arxiv', 'wikipedia']`
 
-**Trace:** `traces/be9675d1-2663-4bc0-a981-e69a5832bc76.jsonl`
+**Trace:** `traces/36d514b1-574f-4dcb-bb1e-eeb364434ff3.jsonl`
 
-**Event sequence:** `0:run_header → 1:answerability → 2:plan → 3:tool_result → 4:tool_result → 5:sufficiency → 6:plan → 7:tool_result → 8:sufficiency → 9:plan → 10:dedup_skip → 11:sufficiency → 12:synthesize → 13:run_complete`
+**Event sequence:** `0:run_header → 1:answerability → 2:plan → 3:tool_result → 4:tool_result → 5:sufficiency → 6:synthesize → 7:run_complete`
 
-**Groq complete() calls:** `0`
+**Groq complete() calls:** `2`
 
 ## Q6 — `cross_tool_synthesis`
 
@@ -50,14 +55,14 @@ Paired runs share `question_ref` and `experiment_id`; they differ only by `varia
 **outcome_final:** `insufficient_evidence`
 
 **evidence_fingerprint:**
-- source_ids: `['arxiv:2301.00001']`
-- tools_used: `['arxiv']`
+- source_ids: `['wikipedia:Inverted_yield_curve']`
+- tools_used: `['wikipedia']`
 
-**Trace:** `traces/6edf73a9-bb8d-4194-963d-1e1b00f65acd.jsonl`
+**Trace:** `traces/7065cc22-ef6c-41c5-8848-7e0deb3f6613.jsonl`
 
-**Event sequence:** `0:run_header → 1:answerability → 2:plan → 3:tool_result → 4:sufficiency → 5:synthesize → 6:run_complete`
+**Event sequence:** `0:run_header → 1:answerability → 2:plan → 3:tool_result → 4:tool_result → 5:sufficiency → 6:synthesize → 7:run_complete`
 
-**Groq complete() calls:** `0`
+**Groq complete() calls:** `3`
 
 ### variant: `refine`
 
@@ -65,13 +70,13 @@ Paired runs share `question_ref` and `experiment_id`; they differ only by `varia
 **outcome_final:** `insufficient_evidence`
 
 **evidence_fingerprint:**
-- source_ids: `['arxiv:2301.00001']`
-- tools_used: `['arxiv']`
+- source_ids: `['wikipedia:Inverted_yield_curve', 'wikipedia:Yield_curve']`
+- tools_used: `['wikipedia']`
 
-**Trace:** `traces/f3efffce-3b25-4a0c-9e88-d716895ef2b4.jsonl`
+**Trace:** `traces/09dfdc5f-03a4-4984-abc2-fb0a0cace695.jsonl`
 
-**Event sequence:** `0:run_header → 1:answerability → 2:plan → 3:tool_result → 4:sufficiency → 5:plan → 6:dedup_skip → 7:sufficiency → 8:plan → 9:dedup_skip → 10:sufficiency → 11:synthesize → 12:run_complete`
+**Event sequence:** `0:run_header → 1:answerability → 2:plan → 3:tool_result → 4:tool_result → 5:sufficiency → 6:plan → 7:tool_result → 8:dedup_skip → 9:sufficiency → 10:plan → 11:tool_result → 12:tool_result → 13:sufficiency → 14:synthesize → 15:run_complete`
 
-**Groq complete() calls:** `0`
+**Groq complete() calls:** `5`
 
-**Total Groq complete() calls (all 4 runs):** `0`
+**Total Groq complete() calls (all 4 runs):** `12`
