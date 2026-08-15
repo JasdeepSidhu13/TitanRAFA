@@ -72,6 +72,18 @@ python3 -m scripts.run_reference
 Writes `outputs/tier1_results.md` with per-question results and trace paths.  
 Offline: `OFFLINE_MODE=1 python3 -m scripts.run_reference --offline`
 
+## Tier 2 comparison (Q4 & Q6)
+
+Paired runs: `single_pass` (refine disabled) vs `refine` (refine enabled).
+
+```bash
+source .env
+python3 tier2.py
+# or: SINGLE_PASS=1 python3 agent.py "..." --single-pass --question-ref Q4 ...
+```
+
+Writes `outputs/tier2_comparison.md` with mode/outcome, evidence_fingerprint, trace path, event sequence, and per-run Groq call counts. Offline: `OFFLINE_MODE=1 python3 tier2.py --offline`
+
 ## Tier 1 smoke tests
 
 ```bash

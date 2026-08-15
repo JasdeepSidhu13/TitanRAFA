@@ -378,6 +378,7 @@ def run_question(
     offline: bool = False,
     variant: str = "refine",
     experiment_id: Optional[str] = None,
+    single_pass: Optional[bool] = None,
 ) -> RunResult:
     """Execute one agent run and return structured output.
 
@@ -390,8 +391,10 @@ def run_question(
         question_ref: Optional tag e.g. Q4.
         question_type: Canonical question_type for header/sufficiency.
         offline: Replay fixtures without API keys.
-        variant: single_pass or refine.
+        variant: single_pass or refine (overridden when single_pass=True).
         experiment_id: Optional batch experiment id.
+        single_pass: When True, disable refine (SINGLE_PASS). When None,
+            reads SINGLE_PASS env (1/true/yes).
 
     Output:
         RunResult with answer, citations, mode_final, outcome_final, trace path.
@@ -406,8 +409,11 @@ def run_question(
     load_dotenv()
     _require_groq_key(offline)
 
-    refine_disabled = os.environ.get("SINGLE_PASS", "") == "1"
-    effective_variant = "single_pass" if refine_disabled else variant
+    if single_pass is None:
+        env_val = os.environ.get("SINGLE_PASS", "").strip().lower()
+        single_pass = env_val in ("1", "true", "yes")
+    refine_disabled = single_pass
+    effective_variant: str = "single_pass" if refine_disabled else variant
     speculative = question_type == "speculative"
 
     _ = load_policy()
@@ -471,12 +477,19 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--variant",
         choices=["single_pass", "refine"],
         default="refine",
-        help="Tier 2 variant",
+        help="Tier 2 variant (ignored when --single-pass is set)",
+    )
+    parser.add_argument(
+        "--single-pass",
+        action="store_true",
+        help="Disable refine rounds (sets SINGLE_PASS=1; variant=single_pass)",
     )
     parser.add_argument("--experiment-id", default=None, help="Optional batch experiment id")
     args = parser.parse_args(argv)
 
     offline = is_offline_mode(args.offline)
+    if args.single_pass:
+        os.environ["SINGLE_PASS"] = "1"
     result = run_question(
         args.question,
         question_ref=args.question_ref,
@@ -484,6 +497,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         offline=offline,
         variant=args.variant,
         experiment_id=args.experiment_id,
+        single_pass=args.single_pass if args.single_pass else None,
     )
     print(format_cli_output(result))
     return 0
