@@ -25,6 +25,7 @@ MODULES = [
     "fixtures.loader",
     "scripts.reference_loader",
     "scripts.run_reference",
+    "tier2",
     "tools",
     "tools.arxiv",
     "tools.base",

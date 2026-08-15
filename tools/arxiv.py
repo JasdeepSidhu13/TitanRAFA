@@ -26,6 +26,20 @@ ARXIV_EXPORT_API = "https://export.arxiv.org/api/query"
 ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
 
 
+def prepare_arxiv_search_query(query: str) -> str:
+    """Convert planner Boolean phrases to arXiv-friendly keyword search.
+
+    Live planners often emit ``(term) AND (term) AND (2020:2024)`` syntax
+    that arXiv's ``all:`` prefix does not match; simple econ keywords work.
+    """
+    cleaned = re.sub(r"\(\s*\d{4}\s*:\s*\d{4}\s*\)", " ", query)
+    cleaned = re.sub(r"\(\s*\d{4}\s*-\s*\d{4}\s*\)", " ", cleaned)
+    cleaned = re.sub(r"\bAND\b|\bOR\b|\bNOT\b", " ", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"[()]", " ", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned or query.strip()
+
+
 class ArxivTool(Tool):
     """Search arXiv and return the best matching paper abstract.
 
@@ -90,8 +104,9 @@ class ArxivTool(Tool):
         )
 
     def _fetch_live(self, query: str) -> tuple[ToolResult, Optional[str]]:
+        search_query = prepare_arxiv_search_query(query)
         params = {
-            "search_query": f"all:{query}",
+            "search_query": f"all:{search_query}",
             "start": 0,
             "max_results": 5,
         }

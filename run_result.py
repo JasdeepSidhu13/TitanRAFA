@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import quote
 
@@ -39,6 +40,8 @@ class RunResult:
     refusal_reason: Optional[str] = None
     evidence_fingerprint: Optional[dict[str, Any]] = None
     trace_path: str = ""
+    variant: str = "refine"
+    experiment_id: Optional[str] = None
 
 
 def _tool_results_by_source(state: AgentState) -> dict[str, ToolResultEvent]:
@@ -148,6 +151,8 @@ def extract_run_result(state: AgentState) -> RunResult:
         refusal_reason=refusal_reason,
         evidence_fingerprint=evidence_fingerprint,
         trace_path=str(state.trace_path),
+        variant=state.variant,
+        experiment_id=state.experiment_id,
     )
 
 
@@ -206,3 +211,70 @@ def format_tier1_section(result: RunResult) -> str:
             "",
         ]
     )
+
+
+def read_event_sequence(trace_path: str) -> str:
+    """Return compact event_id:kind sequence from a trace JSONL file."""
+    try:
+        lines = Path(trace_path).read_text(encoding="utf-8").strip().splitlines()
+    except OSError:
+        return ""
+    parts: list[str] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        event_id = ev.get("event_id")
+        kind = ev.get("kind")
+        if event_id is not None and kind:
+            parts.append(f"{event_id}:{kind}")
+    return " → ".join(parts)
+
+
+def format_tier2_variant_section(
+    result: RunResult,
+    *,
+    groq_calls: int,
+    event_sequence: str,
+) -> str:
+    """Format one Tier 2 variant block for outputs/tier2_comparison.md."""
+    fp = result.evidence_fingerprint or {"source_ids": [], "tools_used": []}
+    return "\n".join(
+        [
+            f"### variant: `{result.variant}`",
+            "",
+            f"**mode_final:** `{result.mode_final}`  ",
+            f"**outcome_final:** `{result.outcome_final}`",
+            "",
+            "**evidence_fingerprint:**",
+            f"- source_ids: `{fp.get('source_ids', [])}`",
+            f"- tools_used: `{fp.get('tools_used', [])}`",
+            "",
+            f"**Trace:** `{result.trace_path}`",
+            "",
+            f"**Event sequence:** `{event_sequence}`",
+            "",
+            f"**Groq complete() calls:** `{groq_calls}`",
+            "",
+        ]
+    )
+
+
+def format_tier2_question_section(
+    question_ref: str,
+    question_type: str,
+    question: str,
+    variant_sections: list[str],
+) -> str:
+    """Format Q4/Q6 comparison group with both variant blocks."""
+    blocks = [
+        f"## {question_ref} — `{question_type}`",
+        "",
+        f"**Question:** {question}",
+        "",
+    ]
+    blocks.extend(variant_sections)
+    return "\n".join(blocks)

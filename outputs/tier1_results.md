@@ -4,6 +4,18 @@ Generated: 2026-08-15T16:07:04.133609+00:00
 Experiment ID: `tier1-20260815-ua-fix`
 Offline mode: `False`
 
+## Post-fix spot-check (`spot-check-20260815`) — not a full batch re-verification
+
+After planner single-tool routing fix, **Q1 only** was re-run live (refine variant):
+
+| Q | mode_final | outcome_final | tools_used | Groq calls |
+|---|------------|---------------|------------|------------|
+| **Q1** | `grounded` | `completed` | `['wikipedia']` only | **2** |
+
+Trace: `traces/0396332b-d792-4e5a-8e45-ff68b801b60d.jsonl`. Planner proposed **one** tool (`wikipedia`); no arXiv call. Full Tier 1 batch re-verification after this fix was **not** completed due to time.
+
+Rows below are from batch `tier1-20260815-ua-fix` (pre planner-routing fix).
+
 ## Q1 — `single_source_factual`
 
 **Question:** What is the Federal Reserve's discount window and how does it work?
