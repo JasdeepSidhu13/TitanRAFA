@@ -1417,3 +1417,45 @@ Q7 trace: `refused` / `out_of_scope`, no tool events.
 Q4 trace: refine loop (3 plan cycles), `caveated` / `insufficient_evidence`.
 
 ---
+
+## Interaction 13
+
+### User Prompt
+Implement the synthesizer. Record BOTH mode_model and mode_enforced on 
+the synthesize event — never trust mode_model alone. Set 
+synthesize.caused_by to the sufficiency (or final plan) event that 
+triggered synthesis.
+
+If speculative flag is set (Q8-style): require >=1 inference:true claim 
+even when sources exist. Any inference:true claim forces 
+mode_enforced=caveated regardless of mode_model — this value is what the 
+orchestrator uses to set run_complete's mode_final.
+
+Validate every claim's source_id against this run's tool_result events; 
+one repair attempt, then a deterministic templated caveated fallback — 
+run_complete must still get written with valid mode_final/outcome_final 
+on this path, never left unset. Cap aggregate content per the token 
+budget; log drops as dropped_context events with caused_by set to the 
+synthesize event. Flush incrementally to traces/{run_id}.jsonl, 
+run_complete last.
+
+### Cursor Response
+Fully implemented `synthesizer.py` with mechanical mode enforcement and trace logging.
+
+## Synthesizer behavior
+
+- Records **both** `mode_model` and `mode_enforced` on every `synthesize` event; `mode_enforced` is authoritative for `run_complete.mode_final`
+- `synthesize.caused_by` = triggering sufficiency event (or final plan if no sufficiency)
+- **Speculative (Q8):** `_ensure_speculative_claim()` adds `inference:true` when missing
+- **Any `inference:true`** → `mode_enforced=caveated` regardless of `mode_model`
+- **Claim validation:** every non-inference `source_id` must exist on an `ok=True` `tool_result` in this run; one Groq repair attempt, then `_templated_fallback()` (deterministic caveated)
+- **Char budget (6000):** `_select_context()` drops lowest-relevance whole events; each drop logged as `dropped_context` with `caused_by=synthesize.event_id`
+- Appends `synthesize` + `dropped_context` events incrementally via `state.append_event()` before `run_complete`
+
+## Tests (`tests/test_synthesizer.py`)
+
+7 new cases — 14 total passing.
+
+**Verified Q8 offline:** speculative inference claim added, `mode_enforced=caveated`, `caused_by` = sufficiency event id.
+
+---
