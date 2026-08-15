@@ -280,3 +280,28 @@ Repository controls are in place. Three files were created; verification for eac
 No assessment implementation work was performed. Stopping per the stop condition.
 
 ---
+
+## Interaction 2
+
+### User Prompt
+Create these three files in the repo root/config with the exact content
+attached — do not modify, summarize, reformat, or "improve" any of it.
+Commit verbatim with message "Project scaffolding: design doc, tool policy,
+reference questions" and push to the current branch.
+
+### Cursor Response
+Three files were copied byte-for-byte from the attachments into `config/` and committed.
+
+| File | Source |
+|------|--------|
+| `config/DESIGN.md` | `DESIGN_0904.md` |
+| `config/reference_questions.md` | `reference_questions_a538.md` |
+| `config/tool_policy.yaml` | `tool_policy_1ca3.yaml` |
+
+`diff -q` confirmed each destination file matches its source exactly — no content changes.
+
+**Commit:** `5426e07` — `Project scaffolding: design doc, tool policy, reference questions`
+
+**Branch:** `cursor/p1-repository-controls-72ca` (pushed to origin)
+
+---
