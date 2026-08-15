@@ -16,7 +16,7 @@ Banking research agent: natural-language question → tool routing → cited ans
 | Single-command run | `python3 agent.py "your question"` |
 | README (architecture, setup, performance, limitations) | this file |
 | `prompt-log.md` (all AI interactions) | [`prompt-log.md`](prompt-log.md) |
-| Runnable without paid API keys | `OFFLINE_MODE=1` + fixture replay (see below) |
+| Runnable without paid API keys | **Live:** free [Groq API key](https://console.groq.com) (no payment). **Also:** `OFFLINE_MODE=1` fixture replay with zero keys (see below) |
 
 ---
 
@@ -24,11 +24,88 @@ Banking research agent: natural-language question → tool routing → cited ans
 
 From [`config/DESIGN.md`](config/DESIGN.md) — source of truth for design.
 
+### Figure 1 — Full system architecture
+
+```mermaid
+flowchart TB
+    subgraph User["User / CLI"]
+        Q["Natural-language question<br/>python3 agent.py ..."]
+    end
+
+    subgraph Orch["Orchestrator — agent.py (deterministic Python control flow)"]
+        direction TB
+        HDR["run_header<br/>run_id · question_type · variant"]
+        AB["① Answerability<br/>rules: in_scope / refused"]
+        LOOP{{"Refine loop<br/>≤ 2 rounds"}}
+        DEDUP["Dedup gate<br/>tool + normalized_query"]
+        EXEC["Tool executor<br/>sequential calls + RetryPolicy"]
+        SUFF["③ Sufficiency<br/>relevance + diversity gate"]
+        COMP["run_complete<br/>mode_final · outcome_final · fingerprint"]
+    end
+
+    subgraph LLM["Groq LLM — judgment layer (free tier)"]
+        direction TB
+        PLAN["② Planner<br/>which tools · what queries"]
+        SYN["④ Synthesizer<br/>claims + citations + mode"]
+    end
+
+    subgraph State["Memory — AgentState (per run)"]
+        EV["Append-only event log<br/>plan · tool_result · sufficiency · synthesize"]
+        TR["traces/run_id.jsonl"]
+    end
+
+    subgraph Tools["Tools — deterministic HTTP + policy"]
+        WP["WikipediaTool"]
+        AX["ArxivTool"]
+        FR["FREDTool (Tier 3)"]
+    end
+
+    subgraph Ext["External APIs"]
+        WAPI["Wikipedia REST / MediaWiki"]
+        ARX["arXiv Atom export API"]
+    end
+
+    Q --> HDR --> AB
+    AB -->|in scope| PLAN
+    AB -->|out of scope| COMP
+    PLAN -->|tool_calls JSON| DEDUP
+    DEDUP -->|new call| EXEC
+    DEDUP -->|duplicate| EV
+    EXEC --> WP & AX
+    WP --> WAPI
+    AX --> ARX
+    EXEC -->|tool_result events| EV
+    EV --> SUFF
+    SUFF -->|not sufficient| PLAN
+    SUFF -->|sufficient or cap hit| SYN
+    SYN --> COMP
+    EV -.->|compact summary to planner<br/>full content to synthesizer| PLAN
+    EV -.-> SYN
+    EV --> TR
+    COMP --> TR
+
+    classDef llm fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef det fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef mem fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef ext fill:#f3e5f5,stroke:#6a1b9a,stroke-width:1px
+    class PLAN,SYN llm
+    class AB,DEDUP,EXEC,SUFF,LOOP,HDR,COMP det
+    class EV,TR mem
+    class WAPI,ARX ext
 ```
-question → answerability (rules) → planner (Groq LLM)
-        → executor (Wikipedia / arXiv tools) → sufficiency (rules)
-        → refine loop (≤2 rounds) → synthesizer (Groq LLM) → answer + citations
-```
+
+**How to read the figure**
+
+| # | Step | Who decides | What happens |
+|---|------|-------------|--------------|
+| ① | Answerability | **Rules** (no LLM) | Refuse out-of-scope questions (e.g. Q7) before any tool spend. |
+| ② | Plan | **LLM** | Chooses tool(s) and queries from question + prior results summary. |
+| — | Execute | **Code** | Dedup, rate limits, retries; tools never raise into the loop. |
+| ③ | Sufficiency | **Rules** (no LLM) | Relevance per tool; diversity gate (≥2 tools) for cross-tool question types. |
+| ④ | Synthesize | **LLM** | Grounded claims with `source_id` citations; enforces `mode_final`. |
+| — | Trace | **Code** | Every step appended to `AgentState` → JSONL for inspection and Tier 2 diff. |
+
+**Orange boxes = LLM judgment.** **Green boxes = deterministic orchestration and gates.** The LLM never executes tools or mutates state directly.
 
 | Layer | Role |
 |-------|------|
@@ -43,9 +120,9 @@ Each run writes a JSONL trace: `run_header` → plan / tool_result / sufficiency
 
 ## Key design decisions
 
-1. **ReAct-lite over explicit `AgentState`, not free-text ReAct parsing** — events are structured (`plan`, `tool_result`, `sufficiency`, `synthesize`); tracing, dedup, and sufficiency are first-class, not retrofitted onto strings.
+1. **ReAct-lite over explicit `AgentState` (not FSM, not full ReAct)** — I chose this over a finite-state machine (FSM) because a fully deterministic routing system would not generalize well across varied natural-language questions. I still wanted the LLM for **judgment** — deciding which tools to call and how to synthesize evidence — while keeping execution, gates, dedup, and tracing **deterministic in code**. Full text-based ReAct (Thought/Action/Observation parsed from free-form strings) would require many extra LLM round-trips and is fragile to parse; **ReAct-lite** was the pragmatic middle ground: structured `plan` events from the LLM, everything else executed and validated by Python. That split gave me a judgment layer without the time cost of multi-step conversational ReAct.
 
-2. **Groq free tier over local models** — deterministic for reviewers on unknown hardware; requires a free `GROQ_API_KEY` (no payment). Documented in `.env.example`.
+2. **Groq free tier over local models** — deterministic for reviewers on unknown hardware; requires a free `GROQ_API_KEY` (no payment, not a paid API). Documented in `.env.example`. This is the **primary live path** for running the agent on real questions.
 
 3. **Deterministic sufficiency gate (not LLM)** — relevance by tool-specific rules; **source diversity gate** requires ≥2 distinct tools for `multi_source_synthesis` / `cross_tool_synthesis`; `data_retrieval` requires a registered data tool (FRED, not yet wired).
 
@@ -57,7 +134,18 @@ Each run writes a JSONL trace: `run_header` → plan / tool_result / sufficiency
 
 7. **Tier 2 A/B via trace metadata** — `variant` (`single_pass` \| `refine`), `experiment_id`, `refine_disabled` on `run_header` for auto-pairing without manual reconciliation.
 
-8. **Offline mode** — `OFFLINE_MODE=1` replays fixtures so CI and reviewers can run without API keys.
+8. **Offline mode (no API key at all)** — `OFFLINE_MODE=1` replays fixtures for CI and reviewers who cannot sign up for Groq; complements but does not replace the free-tier live path.
+
+### Running without paid API keys
+
+This agent does **not** require a paid API. Two supported paths:
+
+| Path | API key | Use case |
+|------|---------|----------|
+| **Live (recommended)** | Free `GROQ_API_KEY` from [console.groq.com](https://console.groq.com) | Real Wikipedia + arXiv retrieval, Tier 1/2 batches |
+| **Offline** | None — `OFFLINE_MODE=1` | Tests, CI, smoke runs without any signup |
+
+Wikipedia and arXiv are public APIs with no key. Only the planner and synthesizer call Groq, and Groq's free tier is sufficient for development and evaluation runs documented in `outputs/`.
 
 ---
 
@@ -91,7 +179,9 @@ python3 agent.py "What is the Federal Reserve discount window?" \
 
 Stdout: **Answer**, **Citations**, `mode_final`, `outcome_final`, **Trace** path.
 
-### Without paid API keys (offline / CI)
+### Without any API key (offline / CI)
+
+For zero-key runs only — not required if you have a free Groq key:
 
 ```bash
 OFFLINE_MODE=1 python3 agent.py --offline "What is GDP?" \

@@ -2220,3 +2220,13 @@ Your agent should be runnable and testable without paid API keys" Update ReadMe.
 Updated README.md with full deliverables alignment: architecture overview and eight key design decisions from config/DESIGN.md, setup/run instructions (Python 3.12+, offline mode), Tier 1 and Tier 2 performance tables with links to outputs/, honest limitations, and "What I'd do with more time" (routing verification, Tier 3 Option 2 resilience, FRED tool, evals Option A). Committed to main.
 
 ---
+
+## Interaction 30
+
+### User Prompt
+Make a couple of correction to Readme in the last 2-3 min I have. 1) Runnable without paid API keys ---explicitly state that this code can run with groq free api key and not just offline ...2) For React-line also explain that I choose it over FSM because I didn't want a fully deterministic system as that would not generalize well. I wanted to use LLM for judgement and making decisions and react lite was the best way to go forward to save time as full react would be very time consuming with multiple LLM calls. React-lite provided the judgement layer while rest of my code exectured deterministic parts. 3) Finally, include the full architecture diagram clearly explaned. I want a figure.
+
+### Cursor Response
+README corrections: (1) deliverables + new "Running without paid API keys" section clarifying free Groq tier as primary live path vs offline; (2) ReAct-lite decision expanded with FSM vs LLM judgment rationale; (3) Figure 1 full mermaid architecture diagram with step table. Pushed to main.
+
+---
