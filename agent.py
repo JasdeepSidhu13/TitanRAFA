@@ -239,9 +239,11 @@ def _write_insufficient_complete(
     state: AgentState,
     synth: Optional[SynthesizeEvent],
 ) -> None:
-    mode = synth.mode_enforced if synth else "caveated"
+    # insufficient_evidence always pairs with mode_final=caveated (§7),
+    # regardless of synthesizer mode_enforced when sufficiency did not pass.
+    _ = synth
     state.write_run_complete(
-        mode_final=mode,
+        mode_final="caveated",
         outcome_final="insufficient_evidence",
         refusal_reason=None,
     )
