@@ -506,3 +506,149 @@ The biggest Tier-2 rework trap is implementing a minimal `steps[]` list now and 
 Want me to draft the reconciled `tool_policy.yaml` and a concrete `AgentEvent` schema next, or start with the batch runner spec?
 
 ---
+
+## Interaction 4
+
+### User Prompt
+Update config/DESIGN.md, config/tool_policy.yaml, and config/eference_questions.md 
+based on the review — this is a design revision, not new implementation, 
+don't write agent code yet. I've checked the current file and confirmed 
+each of these is real:
+
+1. §4's orchestration diagram still says `state.steps.append(result)` 
+and §4's prose still says "serialize `state.steps`" — but §5 already 
+defines `events: list[AgentEvent]`. Fix both references in §4 to match 
+§5's actual field name. This is a leftover from before §5 was renamed.
+
+2. §5 line 109 says step_id is retired in favor of event_id, but the very 
+next bullets (lines 115-118) still assign a "monotonic step_id" to tool_
+result events, and §5a's sufficiency event schema (line 169) still uses 
+matched_step_ids/rejected_step_ids. Resolve this contradiction: event_id 
+everywhere, no step_id anywhere in the document, including these specific 
+lines.
+
+3. §5e's trace header is self-contradictory: it says the FIRST line 
+contains `outcome`, but outcome isn't known until the run ends. Split 
+this into two events: a `run_header` written first (run_id, question, 
+question_ref, question_type, variant, experiment_id, started_at, config) 
+and a terminal `run_complete` event written last (outcome_final, 
+evidence_fingerprint = sorted source_ids + tools used). Update §5e to 
+describe both explicitly as JSON objects, not header-as-prose.
+
+4. The `outcome` field in §5's header schema (lines 82-84) conflates two 
+different things: mode (grounded/caveated/refused — what the synthesizer 
+path decided) and the REASON within refused (out_of_scope vs 
+insufficient_evidence). Per §5d, mode=refused should be answerability-
+only; in-scope evidence exhaustion should be mode=caveated with an 
+explicit refusal_reason=null, not folded into a "refused: X" string. 
+Add a short table in §7 making mode vs outcome_final two distinct fields 
+with distinct value sets, and fix §5's header schema to match.
+
+5. The AgentEvent kind list (§5, lines 93-94) is missing dropped_context, 
+which §7 already requires. Add it to the union. Also add explicit payload 
+fields for plan events (tool_calls_proposed, tool_calls_after_validation, 
+planner_input_summary — which prior event_ids were visible in the 
+compact summary, validation_errors, repair_count, model_id) and for 
+synthesize events (mode_model vs mode_enforced as two separate fields, 
+claims_raw, claims_validated, context_event_ids, chars_fed) — §5c says 
+every LLM call is logged but never defines what gets logged.
+
+6. Assign caused_by responsibility explicitly per event kind, as a 
+requirement not just a field definition: tool_result.caused_by -> the 
+parent plan event's id; sufficiency.caused_by -> the plan event that 
+triggered it; dedup_skip.caused_by -> the plan that proposed the blocked 
+call. State this in §5 as something each event emitter must set, not 
+something that exists in the abstract.
+
+7. §5a's diversity gate currently treats keyword triggers and the 
+question_type tag as equal-weight alternatives ("keyword triggers... or 
+an explicit question_type tag"). Make question_type the PRIMARY signal 
+and keywords fallback-only (used only when question_type is absent) — 
+the keyword list alone misses Q4's "differ" phrasing, which is why this 
+matters in practice, not just in principle.
+
+8. §7 has no handling for Q8/speculative questions specifically — it only 
+has the general inference:true -> caveated forcing rule. Add a 
+speculative flag (from question_type or an answerability subclass) and a 
+synthesizer instruction requiring at least one inference:true claim for 
+speculative questions even when sources exist, so an all-grounded answer 
+can't slip through Q8.
+
+9. §10 still says offline mode should be built "once Tier 1's happy path 
+works, before Tier 2" — promote it explicitly into the Tier 1 happy path 
+itself, not after. The "no paid keys" constraint means this can't be an 
+afterthought.
+
+10. Add a failure_class field (timeout | http_429 | parse_error | 
+empty_result) to tool_result events, set whenever ok=False — currently 
+only a free-text reason exists, which isn't machine-diagnosable.
+
+11. Add a dedicated "Batch Runner" section (new, after §6): specify it as 
+required Tier-1 scaffolding, not implied — single long-lived process, 
+sets question_ref/question_type/variant on each run's header from 
+reference_questions.md, preserves arXiv rate state across questions in 
+the batch rather than resetting per-question.
+
+12. Reconcile config/tool_policy.yaml's circuit_breaker_consecutive_
+failures to 2 (DESIGN.md §5b already correctly specifies 2 — the YAML is 
+the one that's behind) and add per_tool_cumulative_time_cap_s=45 to the 
+YAML if missing.
+
+13. Confirm reference_questions.md has a question_type column with 
+values matching what §5a/§7 now reference (seven canonical types 
+including a distinct speculative type for Q8) — add it if it's not 
+already there.
+
+14. Add an operational guardrails checklist to §10: pinned 
+requirements.txt, .env.example documenting both GROQ_API_KEY and 
+FRED_API_KEY, a one-command smoke script producing outputs/
+tier1_results.md, and .ratelimit_state.json in .gitignore if the batch 
+runner (item 11) isn't the sole rate-limit mechanism.
+
+After updating all three files, show me meaningfully what changed 
+in each — not the full diff — so I can sanity-check before you commit. 
+Then commit verbatim with message "Design revision: fix stale events 
+reference, resolve step_id/event_id contradiction, split run_header/
+run_complete, mode-vs-outcome taxonomy, question_type-primary diversity 
+gate, batch runner spec" and push to repo.
+After updating all three files, show me a short summary of what changed 
+in each — not the full diff — so I can sanity-check before you commit. 
+Then commit verbatim with message "Design revision round 2: fix stale 
+events reference, freeze caused_by wiring, mode-vs-outcome taxonomy, 
+batch runner spec, operational guardrails" and push to repo.
+
+### Cursor Response
+All 14 review items applied. Summary by file:
+
+### `config/DESIGN.md` (~+220 lines net)
+
+- **§4:** `state.steps` → `state.events` in diagram and prose.
+- **§5:** Removed all `step_id` references; `event_id` everywhere; sufficiency uses `matched_event_ids`/`rejected_event_ids`. Header schema now has `question_type`, `experiment_id`, `refine_disabled`; terminal fields split to `mode_final`, `outcome_final`, `refusal_reason`. Event union adds `run_header`, `run_complete`, `dropped_context`; `plan`/`synthesize` payloads defined; `failure_class` on `tool_result`. New **caused_by emitter table** (items 5–6).
+- **§5a:** Diversity gate is `question_type`-primary; keywords fallback-only when type absent.
+- **§5b:** Loop exhaustion → `mode_final=caveated` + `outcome_final=insufficient_evidence`; points to §6a for rate limiting.
+- **§5d:** Refusal paths use distinct `mode_final`/`outcome_final` fields.
+- **§5e:** Replaced prose header with JSON `run_header` (first line) and `run_complete` (last line) including `evidence_fingerprint`.
+- **§6a (new):** Batch runner spec — required Tier-1 scaffolding.
+- **§7:** `mode_final` vs `outcome_final` table; Q8 speculative handling with minimum `inference:true` claim rule.
+- **§10:** Offline mode promoted into Tier 1 happy path; operational guardrails checklist table added.
+
+### `config/tool_policy.yaml`
+
+- `circuit_breaker_consecutive_failures`: 3 → **2**
+- Added `per_tool_cumulative_time_cap_s: **45**`
+- Notes updated to `mode_final`/`outcome_final` taxonomy
+
+### `config/reference_questions.md`
+
+- Added canonical **`question_type`** column (7 snake_case values: `single_source_factual`, `academic_search`, `multi_source_synthesis`, `data_retrieval`, `cross_tool_synthesis`, `out_of_scope`, `speculative`)
+- Renamed old Type column to "Type (human label)"
+
+### Also (item 14)
+
+- `.gitignore`: added `.ratelimit_state.json`
+
+**Commit:** `6239341` — `Design revision round 2: fix stale events reference, freeze caused_by wiring, mode-vs-outcome taxonomy, batch runner spec, operational guardrails`
+
+**Branch:** `cursor/p1-repository-controls-72ca` (pushed)
+
+---
